@@ -6,6 +6,7 @@ use axum::{
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
 mod config;
@@ -88,13 +89,39 @@ async fn main() {
             middleware::auth_middleware,
         ));
 
-    let app = Router::new()
+    // Determine frontend dist path (check both locations)
+    let frontend_dist = if std::path::Path::new("./forum-web/dist").exists() {
+        Some("./forum-web/dist")
+    } else if std::path::Path::new("../forum-web/dist").exists() {
+        Some("../forum-web/dist")
+    } else {
+        tracing::warn!("Frontend dist not found - static file serving disabled");
+        None
+    };
+
+    let api_routes = Router::new()
         .merge(public_routes)
         .merge(auth_routes)
         .merge(write_routes)
-        .with_state(state)
-        .layer(cors)
-        .layer(TraceLayer::new_for_http());
+        .with_state(state);
+
+    let app = if let Some(dist_path) = frontend_dist {
+        let index_path = format!("{}/index.html", dist_path);
+        tracing::info!("Serving frontend from: {}", dist_path);
+
+        Router::new()
+            .nest("/api", api_routes)
+            .fallback_service(
+                ServeDir::new(dist_path)
+                    .not_found_service(ServeFile::new(index_path))
+            )
+            .layer(cors)
+            .layer(TraceLayer::new_for_http())
+    } else {
+        api_routes
+            .layer(cors)
+            .layer(TraceLayer::new_for_http())
+    };
 
     let addr = format!("0.0.0.0:{}", config.port);
     tracing::info!("Starting server on {}", addr);
