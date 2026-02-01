@@ -4,12 +4,12 @@ use axum::{
     Router,
 };
 use sqlx::PgPool;
-use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
 mod config;
+mod controllers;
 mod db;
 mod handlers;
 mod middleware;
@@ -17,12 +17,13 @@ mod models;
 mod services;
 
 use config::Config;
-use services::CacheService;
+use controllers::{PostsController, RegisterController, WebController};
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
-    pub cache: Arc<CacheService>,
+    pub config: Config,
+    pub http_client: reqwest::Client,
 }
 
 #[tokio::main]
@@ -46,14 +47,32 @@ async fn main() {
         .expect("Failed to create database pool");
 
     tracing::info!("Connected to database");
+    tracing::info!("Wallet address: {}", config.wallet_address);
+    tracing::info!("Facilitator URL: {}", config.facilitator_url);
+    tracing::info!(
+        "Payment network: {} | Token: {} ({})",
+        config.payment_network,
+        config.payment_token_symbol,
+        config.payment_token_address
+    );
+    tracing::info!(
+        "Cost per registration: {} ({} decimals)",
+        config.cost_per_registration,
+        config.payment_token_decimals
+    );
+    tracing::info!(
+        "Cost per post: {} ({} decimals)",
+        config.cost_per_post,
+        config.payment_token_decimals
+    );
 
-    // Create cache service
-    let cache = CacheService::new(&config.redis_url)
-        .expect("Failed to create cache service");
+    let port = config.port;
+    let http_client = reqwest::Client::new();
 
     let state = AppState {
         pool,
-        cache: Arc::new(cache),
+        config,
+        http_client,
     };
 
     // CORS configuration
@@ -89,8 +108,16 @@ async fn main() {
             middleware::auth_middleware,
         ));
 
-    // Determine frontend dist path (check both locations)
-    let frontend_dist = if std::path::Path::new("./forum-web/dist").exists() {
+    // x402-gated controller routes
+    let register_routes = RegisterController::routes(state.clone());
+    let posts_routes = PostsController::routes(state.clone());
+
+    // Determine frontend dist path (check multiple locations)
+    let frontend_dist = if std::path::Path::new("./forum-frontend/dist").exists() {
+        Some("./forum-frontend/dist")
+    } else if std::path::Path::new("../forum-frontend/dist").exists() {
+        Some("../forum-frontend/dist")
+    } else if std::path::Path::new("./forum-web/dist").exists() {
         Some("./forum-web/dist")
     } else if std::path::Path::new("../forum-web/dist").exists() {
         Some("../forum-web/dist")
@@ -103,6 +130,8 @@ async fn main() {
         .merge(public_routes)
         .merge(auth_routes)
         .merge(write_routes)
+        .merge(register_routes)
+        .merge(posts_routes)
         .with_state(state);
 
     let app = if let Some(dist_path) = frontend_dist {
@@ -123,7 +152,7 @@ async fn main() {
             .layer(TraceLayer::new_for_http())
     };
 
-    let addr = format!("0.0.0.0:{}", config.port);
+    let addr = format!("0.0.0.0:{}", port);
     tracing::info!("Starting server on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(&addr)

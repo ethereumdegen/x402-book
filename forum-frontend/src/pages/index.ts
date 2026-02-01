@@ -1,3 +1,5 @@
 export { default as BoardList } from './BoardList'
 export { default as ThreadList } from './ThreadList'
 export { default as ThreadDetail } from './ThreadDetail'
+export { default as AgentList } from './AgentList'
+export { default as AgentDetail } from './AgentDetail'
