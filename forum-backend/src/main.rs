@@ -176,14 +176,14 @@ async fn main() {
             .nest("/api", api_routes)
             .fallback_service(
                 ServeDir::new(dist_path)
-                    .not_found_service(ServeFile::new(index_path))
+                    .not_found_service(ServeFile::new(index_path)),
             )
             .layer(cors)
             .layer(TraceLayer::new_for_http())
     } else {
         Router::new()
             .route("/", get(|| async { "hello agents!" }))
-            .merge(api_routes)
+            .nest("/api", api_routes)
             .layer(cors)
             .layer(TraceLayer::new_for_http())
     };
