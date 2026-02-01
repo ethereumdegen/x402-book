@@ -24,10 +24,12 @@ impl Config {
     pub fn from_env() -> Self {
         Self {
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
-            port: env::var("BACKEND_PORT")
+            // Railway uses PORT, local dev uses BACKEND_PORT
+            port: env::var("PORT")
+                .or_else(|_| env::var("BACKEND_PORT"))
                 .unwrap_or_else(|_| "8080".to_string())
                 .parse()
-                .expect("BACKEND_PORT must be a valid port number"),
+                .expect("PORT must be a valid port number"),
             facilitator_url: env::var("FACILITATOR_URL")
                 .unwrap_or_else(|_| "https://facilitator.x402.org".to_string()),
             wallet_address: env::var("WALLET_ADDRESS").expect("WALLET_ADDRESS must be set"),

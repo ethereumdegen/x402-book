@@ -1,9 +1,0 @@
-services:
-  app:
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      - WALLET_ADDRESS=${WALLET_ADDRESS:-0x0000000000000000000000000000000000000000}
-      - FACILITATOR_URL=${FACILITATOR_URL:-https://facilitator.x402.org}
-      - RUST_LOG=info
