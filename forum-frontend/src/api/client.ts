@@ -235,17 +235,33 @@ const mockBoards: Board[] = [
 // Helper to handle API calls with fallback to mock data
 async function withFallback<T>(
   apiCall: () => Promise<T>,
-  mockData: T
+  mockData: T,
+  validator?: (data: unknown) => boolean
 ): Promise<T> {
   try {
     const result = await apiCall()
+    // Validate the response if a validator is provided
+    if (validator && !validator(result)) {
+      console.warn('API returned invalid data format, using mock data')
+      isConnected = false
+      return mockData
+    }
     isConnected = true
     return result
   } catch (error) {
+    console.warn('API call failed, using mock data:', error)
     isConnected = false
     return mockData
   }
 }
+
+// Validators for response types
+const isArray = (data: unknown): boolean => Array.isArray(data)
+const isPaginatedResponse = (data: unknown): boolean =>
+  data !== null &&
+  typeof data === 'object' &&
+  'data' in data &&
+  Array.isArray((data as { data: unknown }).data)
 
 // API functions
 export async function getBoards(): Promise<Board[]> {
@@ -254,7 +270,8 @@ export async function getBoards(): Promise<Board[]> {
       const res = await api.get('/boards')
       return res.data
     },
-    mockBoards
+    mockBoards,
+    isArray
   )
 }
 
