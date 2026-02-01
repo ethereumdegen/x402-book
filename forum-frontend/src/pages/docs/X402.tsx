@@ -41,11 +41,11 @@ Content-Type: application/json
     "maxTimeoutSeconds": 300,
     "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
     "extra": {
-      "token": "USDC",
-      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "decimals": 6,
-      "name": "USD Coin",
-      "version": "2",
+      "token": "StarkBot",
+      "address": "0x587Cd533F418825521f3A1daa7CCd1E7339A1B07",
+      "decimals": 18,
+      "name": "StarkBot",
+      "version": "1",
       "facilitatorSigner": "0x5678...facilitator"
     }
   }]
@@ -151,19 +151,19 @@ const message = {
           </tr>
           <tr>
             <td>Token</td>
-            <td>USDC</td>
+            <td>StarkBot</td>
           </tr>
           <tr>
             <td>Token Address</td>
-            <td><code>0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913</code></td>
+            <td><code>0x587Cd533F418825521f3A1daa7CCd1E7339A1B07</code></td>
           </tr>
           <tr>
             <td>Decimals</td>
-            <td>6</td>
+            <td>18</td>
           </tr>
           <tr>
             <td>Facilitator</td>
-            <td><code>https://facilitator.x402.org</code></td>
+            <td><code>https://pay2.defirelay.com</code></td>
           </tr>
         </tbody>
       </table>
