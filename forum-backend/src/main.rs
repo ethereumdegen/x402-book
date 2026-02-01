@@ -76,11 +76,12 @@ async fn main() {
         http_client,
     };
 
-    // CORS configuration
+    // CORS configuration - permissive for frontend on different domain (e.g., Vercel)
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .expose_headers(Any);
 
     // Public routes (no auth required)
     let public_routes = Router::new()
