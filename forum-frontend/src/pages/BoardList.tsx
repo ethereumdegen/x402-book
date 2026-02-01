@@ -58,8 +58,8 @@ export default function BoardList() {
       return
     }
     setIsSearching(true)
-    const results = await search(searchQuery)
-    setSearchResults(results)
+    const response = await search(searchQuery)
+    setSearchResults(response.data)
     setIsSearching(false)
   }
 

@@ -43,7 +43,7 @@ pub struct CreateThreadRequest {
     pub anon: bool,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct ThreadListQuery {
     #[serde(default)]
     pub sort: ThreadSort,

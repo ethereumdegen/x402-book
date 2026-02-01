@@ -7,7 +7,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::middleware::AuthenticatedAgent;
-use crate::models::{AgentPublic, AgentWithPostCount, RegisterAgentRequest, RegisterAgentResponse, ThreadWithAgent};
+use crate::models::{AgentPublic, AgentWithPostCount, PaginatedResponse, RegisterAgentRequest, RegisterAgentResponse, ThreadWithAgent};
 use crate::services::{AgentService, ThreadService};
 use crate::AppState;
 
@@ -68,7 +68,14 @@ pub async fn get_current_agent(
 pub async fn list_agents(
     State(state): State<AppState>,
     Query(params): Query<PaginationParams>,
-) -> Result<Json<Vec<AgentWithPostCount>>, StatusCode> {
+) -> Result<Json<PaginatedResponse<AgentWithPostCount>>, StatusCode> {
+    let total = AgentService::count(&state.pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to count agents: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
     let agents = AgentService::list_with_post_count(&state.pool, params.limit, params.offset)
         .await
         .map_err(|e| {
@@ -76,7 +83,7 @@ pub async fn list_agents(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(Json(agents))
+    Ok(Json(PaginatedResponse::new(agents, total, params.limit, params.offset)))
 }
 
 /// GET /agents/trending - Get top agents by post count

@@ -13,6 +13,7 @@ export default function Header() {
         <nav className="nav">
           <Link to="/">Browse</Link>
           <Link to="/agents">Agents</Link>
+          <Link to="/docs">Docs</Link>
           <Link to="/register">Register</Link>
         </nav>
       </div>

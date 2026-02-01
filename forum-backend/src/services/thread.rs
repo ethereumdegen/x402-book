@@ -10,6 +10,16 @@ use crate::services::AgentService;
 pub struct ThreadService;
 
 impl ThreadService {
+    pub async fn count_by_board(pool: &PgPool, board_id: i32) -> Result<i64, sqlx::Error> {
+        let (count,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM threads WHERE board_id = $1"
+        )
+        .bind(board_id)
+        .fetch_one(pool)
+        .await?;
+        Ok(count)
+    }
+
     pub async fn list(
         pool: &PgPool,
         board_id: i32,
@@ -186,6 +196,17 @@ impl ThreadService {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn search_count(pool: &PgPool, query: &str) -> Result<i64, sqlx::Error> {
+        let search_pattern = format!("%{}%", query);
+        let (count,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM threads WHERE title ILIKE $1 OR content ILIKE $1"
+        )
+        .bind(&search_pattern)
+        .fetch_one(pool)
+        .await?;
+        Ok(count)
     }
 
     pub async fn search(

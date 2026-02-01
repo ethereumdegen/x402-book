@@ -1,33 +1,31 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAccount, useConnect, useDisconnect, useSignTypedData } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useSignTypedData, usePublicClient } from 'wagmi'
 import { injected } from 'wagmi/connectors'
-import { keccak256, encodePacked, toHex } from 'viem'
 import { api } from '../api'
+import { CHAIN_ID } from '../config'
 
-// USDC on Base mainnet
-const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const
-const BASE_CHAIN_ID = 8453
-
-// EIP-3009 domain for USDC on Base
-const domain = {
-  name: 'USD Coin',
-  version: '2',
-  chainId: BASE_CHAIN_ID,
-  verifyingContract: USDC_ADDRESS,
-} as const
-
-// EIP-3009 TransferWithAuthorization message type
-const types = {
-  TransferWithAuthorization: [
-    { name: 'from', type: 'address' },
-    { name: 'to', type: 'address' },
+// EIP-2612 Permit message type
+const permitTypes = {
+  Permit: [
+    { name: 'owner', type: 'address' },
+    { name: 'spender', type: 'address' },
     { name: 'value', type: 'uint256' },
-    { name: 'validAfter', type: 'uint256' },
-    { name: 'validBefore', type: 'uint256' },
-    { name: 'nonce', type: 'bytes32' },
+    { name: 'nonce', type: 'uint256' },
+    { name: 'deadline', type: 'uint256' },
   ],
 } as const
+
+// Minimal ABI for reading nonce
+const nonceAbi = [
+  {
+    inputs: [{ name: 'owner', type: 'address' }],
+    name: 'nonces',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const
 
 type Status = 'idle' | 'signing' | 'sending' | 'success' | 'error'
 
@@ -41,6 +39,8 @@ interface PaymentRequirements {
     token?: string
     address?: string
     decimals?: number
+    name?: string
+    version?: string
   }
 }
 
@@ -61,15 +61,21 @@ export default function Register() {
   const { connect, isPending: isConnecting } = useConnect()
   const { disconnect } = useDisconnect()
   const { signTypedDataAsync } = useSignTypedData()
+  const publicClient = usePublicClient()
 
   const handleConnect = () => {
     connect({ connector: injected() })
   }
 
-  const generateNonce = (): `0x${string}` => {
-    const randomBytes = new Uint8Array(32)
-    crypto.getRandomValues(randomBytes)
-    return keccak256(encodePacked(['bytes32'], [toHex(randomBytes)]))
+  // Helper to read nonce from token contract
+  const readNonce = async (tokenAddress: `0x${string}`, owner: `0x${string}`): Promise<bigint> => {
+    if (!publicClient) throw new Error('No public client available')
+    return await publicClient.readContract({
+      address: tokenAddress,
+      abi: nonceAbi,
+      functionName: 'nonces',
+      args: [owner],
+    })
   }
 
   const handleRegister = async () => {
@@ -117,9 +123,15 @@ export default function Register() {
 
       const payTo = requirements.payTo || requirements.pay_to
       const amount = requirements.maxAmountRequired || requirements.max_amount_required
-      const tokenAddress = requirements.extra?.address || USDC_ADDRESS
-      const tokenDecimals = requirements.extra?.decimals || 6
-      const tokenSymbol = requirements.extra?.token || 'USDC'
+      const tokenAddress = requirements.extra?.address
+      const tokenDecimals = requirements.extra?.decimals
+      const tokenSymbol = requirements.extra?.token
+      const tokenName = requirements.extra?.name
+      const tokenVersion = requirements.extra?.version
+
+      if (!tokenAddress || !tokenName || !tokenVersion) {
+        throw new Error('Missing token configuration from server')
+      }
 
       setPaymentInfo({
         payTo,
@@ -131,47 +143,55 @@ export default function Register() {
           token: tokenSymbol,
           address: tokenAddress,
           decimals: tokenDecimals,
+          name: tokenName,
+          version: tokenVersion,
         },
       })
 
-      // Step 3: Sign EIP-3009 authorization
+      // Step 3: Sign EIP-2612 permit
       setStatus('signing')
 
-      const nonce = generateNonce()
-      const validAfter = BigInt(0)
-      const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1 hour expiry
+      // Build domain dynamically from server config
+      const domain = {
+        name: tokenName,
+        version: tokenVersion,
+        chainId: CHAIN_ID,
+        verifyingContract: tokenAddress as `0x${string}`,
+      } as const
+
+      // Get nonce from token contract
+      const nonce = await readNonce(tokenAddress as `0x${string}`, address)
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1 hour expiry
       const value = BigInt(amount)
 
       const message = {
-        from: address,
-        to: payTo as `0x${string}`,
+        owner: address,
+        spender: payTo as `0x${string}`,
         value,
-        validAfter,
-        validBefore,
         nonce,
+        deadline,
       }
 
       const signature = await signTypedDataAsync({
         domain,
-        types,
-        primaryType: 'TransferWithAuthorization',
+        types: permitTypes,
+        primaryType: 'Permit',
         message,
       })
 
-      // Step 4: Create x402 v2 payment payload
+      // Step 4: Create x402 v2 payment payload with permit
       const paymentPayload = {
         x402Version: 2,
         scheme: 'exact',
-        network: `eip155:${BASE_CHAIN_ID}`,
+        network: `eip155:${CHAIN_ID}`,
         payload: {
           signature,
-          authorization: {
-            from: address,
-            to: payTo,
+          permit: {
+            owner: address,
+            spender: payTo,
             value: amount,
-            validAfter: '0',
-            validBefore: validBefore.toString(),
-            nonce: nonce,
+            nonce: nonce.toString(),
+            deadline: deadline.toString(),
           },
         },
       }
@@ -210,8 +230,12 @@ export default function Register() {
   }
 
   const formatAmount = (amount: string, decimals: number = 6) => {
-    const value = parseInt(amount) / Math.pow(10, decimals)
-    return value.toFixed(decimals > 2 ? 4 : 2)
+    // Use BigInt for precision with 18-decimal tokens
+    const amountBigInt = BigInt(amount)
+    const divisor = BigInt(10 ** Math.min(decimals, 8)) // Partial division
+    const remaining = decimals - Math.min(decimals, 8)
+    const partial = Number(amountBigInt / divisor) / Math.pow(10, remaining)
+    return partial.toFixed(decimals > 6 ? 6 : decimals > 2 ? 4 : 2)
   }
 
   const truncateAddress = (addr: string) => {

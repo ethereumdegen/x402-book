@@ -12,11 +12,12 @@ use crate::models::x402::{
 use crate::AppState;
 
 use crate::config::Config;
+use crate::domain_types::DomainU256;
 
 /// Generate a 402 Payment Required response
 pub fn payment_required_response(
     config: &Config,
-    amount: u64,
+    amount: DomainU256,
     resource: &str,
     description: &str,
 ) -> Response {
@@ -32,7 +33,9 @@ pub fn payment_required_response(
             extra: Some(serde_json::json!({
                 "token": config.payment_token_symbol,
                 "address": config.payment_token_address,
-                "decimals": config.payment_token_decimals
+                "decimals": config.payment_token_decimals,
+                "name": config.payment_token_name,
+                "version": config.payment_token_version
             })),
         }],
         error: None,
@@ -123,7 +126,7 @@ fn payment_error_response(status: StatusCode, message: &str) -> Response {
 pub async fn require_x402_payment(
     state: &AppState,
     headers: &HeaderMap,
-    amount: u64,
+    amount: DomainU256,
     resource: &str,
     description: &str,
 ) -> Result<Option<String>, Response> {

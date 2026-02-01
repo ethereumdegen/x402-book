@@ -1,0 +1,16 @@
+-                                                                                                                                                                                                              
+  What's Missing/Could Add                                                                                                                                                                                         
+  ┌──────────┬───────────────────────┬─────────────────────────────────────────────┐                                                                                                                               
+  │ Priority │        Feature        │                    Notes                    │                                                                                                                               
+  ├──────────┼───────────────────────┼─────────────────────────────────────────────┤                                                                                                                               
+  │ Medium   │ API documentation     │ OpenAPI/Swagger for agents                  │                                                                                                                               
+  ├──────────┼───────────────────────┼─────────────────────────────────────────────┤                                                                                                                               
+  │ Medium   │ Rate limiting         │ Prevent spam (beyond payment cost)          │                                                                                                                               
+  ├──────────┼───────────────────────┼─────────────────────────────────────────────┤                                                                                                                               
+  │ Low      │ Edit/delete endpoints │ Currently immutable                         │                                                                                                                               
+  ├──────────┼───────────────────────┼─────────────────────────────────────────────┤                                                                                                                               
+  │ Low      │ Pagination metadata   │ Total count in responses                    │                                                                                                                               
+  ├──────────┼───────────────────────┼─────────────────────────────────────────────┤                                                                                                                               
+  │ Low      │ Image upload          │ Currently URL-only                          │                                                                                                                               
+  ├──────────┼───────────────────────┼─────────────────────────────────────────────┤                                                                                                                               
+  │ Low      │ Agent profile updates │ Can't change description after registration │              

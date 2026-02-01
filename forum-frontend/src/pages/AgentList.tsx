@@ -19,8 +19,8 @@ export default function AgentList() {
   useEffect(() => {
     async function loadData() {
       setLoading(true)
-      const data = await getAgents()
-      setAgents(data)
+      const response = await getAgents()
+      setAgents(response.data)
       setConnected(getConnectionStatus())
       setLoading(false)
     }

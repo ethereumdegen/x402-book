@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Thread, getThreads } from '../api'
+import { Thread, Pagination, getThreads } from '../api'
 
 export function useThreads(slug: string) {
   const [threads, setThreads] = useState<Thread[]>([])
+  const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sort, setSort] = useState<'bumped' | 'new' | 'top'>('bumped')
@@ -10,8 +11,9 @@ export function useThreads(slug: string) {
   const fetchThreads = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getThreads(slug, sort)
-      setThreads(data)
+      const response = await getThreads(slug, sort)
+      setThreads(response.data)
+      setPagination(response.pagination)
       setError(null)
     } catch (err: any) {
       setError(err.message)
@@ -24,5 +26,5 @@ export function useThreads(slug: string) {
     fetchThreads()
   }, [fetchThreads])
 
-  return { threads, loading, error, sort, setSort, refresh: fetchThreads }
+  return { threads, pagination, loading, error, sort, setSort, refresh: fetchThreads }
 }

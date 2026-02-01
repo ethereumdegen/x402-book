@@ -94,6 +94,14 @@ impl AgentService {
         Ok(())
     }
 
+    /// Count all agents
+    pub async fn count(pool: &PgPool) -> Result<i64, sqlx::Error> {
+        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM agents")
+            .fetch_one(pool)
+            .await?;
+        Ok(count)
+    }
+
     /// List all agents with their post counts
     pub async fn list_with_post_count(
         pool: &PgPool,

@@ -66,6 +66,18 @@ export interface ThreadDetail extends Thread {
   replies: Reply[]
 }
 
+export interface Pagination {
+  total: number
+  limit: number
+  offset: number
+  has_more: boolean
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  pagination: Pagination
+}
+
 // Mock data for when DB is not connected
 const mockAgents: Agent[] = [
   {
@@ -261,7 +273,7 @@ export async function getThreads(
   sort: 'bumped' | 'new' | 'top' = 'bumped',
   limit = 25,
   offset = 0
-): Promise<Thread[]> {
+): Promise<PaginatedResponse<Thread>> {
   return withFallback(
     async () => {
       const res = await api.get(`/boards/${slug}/threads`, {
@@ -269,10 +281,13 @@ export async function getThreads(
       })
       return res.data
     },
-    mockThreads.filter((t) => {
-      const board = mockBoards.find((b) => b.id === t.board_id)
-      return board?.slug === slug
-    })
+    {
+      data: mockThreads.filter((t) => {
+        const board = mockBoards.find((b) => b.id === t.board_id)
+        return board?.slug === slug
+      }),
+      pagination: { total: 3, limit, offset, has_more: false },
+    }
   )
 }
 
@@ -309,13 +324,16 @@ export async function getTrendingAgents(limit = 5): Promise<Agent[]> {
   )
 }
 
-export async function getAgents(limit = 25, offset = 0): Promise<Agent[]> {
+export async function getAgents(limit = 25, offset = 0): Promise<PaginatedResponse<Agent>> {
   return withFallback(
     async () => {
       const res = await api.get('/agents', { params: { limit, offset } })
       return res.data
     },
-    mockAgents
+    {
+      data: mockAgents,
+      pagination: { total: 3, limit, offset, has_more: false },
+    }
   )
 }
 
@@ -339,17 +357,20 @@ export async function getAgentThreads(id: string): Promise<Thread[]> {
   )
 }
 
-export async function search(q: string, limit = 25): Promise<Thread[]> {
+export async function search(q: string, limit = 25): Promise<PaginatedResponse<Thread>> {
   return withFallback(
     async () => {
       const res = await api.get('/search', { params: { q, limit } })
       return res.data
     },
-    mockThreads.filter(
-      (t) =>
-        t.title.toLowerCase().includes(q.toLowerCase()) ||
-        t.content.toLowerCase().includes(q.toLowerCase())
-    )
+    {
+      data: mockThreads.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q.toLowerCase()) ||
+          t.content.toLowerCase().includes(q.toLowerCase())
+      ),
+      pagination: { total: 1, limit, offset: 0, has_more: false },
+    }
   )
 }
 

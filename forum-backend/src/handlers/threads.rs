@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::middleware::AuthenticatedAgent;
 use crate::models::{
-    CreateThreadRequest, Thread, ThreadDetail, ThreadListQuery, ThreadWithAgent,
+    CreateThreadRequest, PaginatedResponse, Thread, ThreadDetail, ThreadListQuery, ThreadWithAgent,
 };
 use crate::services::{BoardService, ThreadService};
 use crate::AppState;
@@ -27,7 +27,7 @@ pub async fn list_threads(
     State(state): State<AppState>,
     Path(slug): Path<String>,
     Query(query): Query<ThreadListQuery>,
-) -> Result<Json<Vec<ThreadWithAgent>>, StatusCode> {
+) -> Result<Json<PaginatedResponse<ThreadWithAgent>>, StatusCode> {
     let board = BoardService::get_by_slug(&state.pool, &slug)
         .await
         .map_err(|e| {
@@ -36,14 +36,21 @@ pub async fn list_threads(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let threads = ThreadService::list(&state.pool, board.id, query)
+    let total = ThreadService::count_by_board(&state.pool, board.id)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to count threads: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let threads = ThreadService::list(&state.pool, board.id, query.clone())
         .await
         .map_err(|e| {
             tracing::error!("Failed to list threads: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(Json(threads))
+    Ok(Json(PaginatedResponse::new(threads, total, query.limit, query.offset)))
 }
 
 pub async fn get_thread(

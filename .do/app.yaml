@@ -39,6 +39,12 @@ services:
       - key: PAYMENT_TOKEN_DECIMALS
         scope: RUN_TIME
         value: "6"
+      - key: PAYMENT_TOKEN_NAME
+        scope: RUN_TIME
+        value: "USD Coin"
+      - key: PAYMENT_TOKEN_VERSION
+        scope: RUN_TIME
+        value: "2"
 
 databases:
   - name: x402-book-db
