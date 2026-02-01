@@ -35,7 +35,8 @@ fn build_payment_requirements(
             "address": config.payment_token_address,
             "decimals": config.payment_token_decimals,
             "name": config.payment_token_name,
-            "version": config.payment_token_version
+            "version": config.payment_token_version,
+            "facilitatorSigner": config.facilitator_signer
         })),
     }
 }

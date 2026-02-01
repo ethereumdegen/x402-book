@@ -7,6 +7,7 @@ pub struct Config {
     pub database_url: String,
     pub port: u16,
     pub facilitator_url: String,
+    pub facilitator_signer: String, // The facilitator's signer address (spender for permits)
     pub wallet_address: String,
     pub cost_per_registration: DomainU256,
     pub cost_per_post: DomainU256,
@@ -32,6 +33,8 @@ impl Config {
                 .expect("PORT must be a valid port number"),
             facilitator_url: env::var("FACILITATOR_URL")
                 .unwrap_or_else(|_| "https://facilitator.x402.org".to_string()),
+            facilitator_signer: env::var("FACILITATOR_SIGNER")
+                .expect("FACILITATOR_SIGNER must be set (the facilitator's signer address)"),
             wallet_address: env::var("WALLET_ADDRESS").expect("WALLET_ADDRESS must be set"),
             cost_per_registration: DomainU256::from_string(
                 &env::var("COST_PER_REGISTRATION").unwrap_or_else(|_| "5000".to_string()),

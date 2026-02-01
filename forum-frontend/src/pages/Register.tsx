@@ -41,6 +41,7 @@ interface PaymentRequirements {
     decimals?: number
     name?: string
     version?: string
+    facilitatorSigner?: string
   }
 }
 
@@ -123,20 +124,26 @@ export default function Register() {
 
       const payTo = requirements.payTo || requirements.pay_to
       const amount = requirements.maxAmountRequired || requirements.max_amount_required
+      const network = requirements.network // e.g. "base" - V1 uses network names
       const tokenAddress = requirements.extra?.address
       const tokenDecimals = requirements.extra?.decimals
       const tokenSymbol = requirements.extra?.token
       const tokenName = requirements.extra?.name
       const tokenVersion = requirements.extra?.version
+      const facilitatorSigner = requirements.extra?.facilitatorSigner
 
       if (!tokenAddress || !tokenName || !tokenVersion) {
         throw new Error('Missing token configuration from server')
       }
 
+      if (!facilitatorSigner) {
+        throw new Error('Missing facilitator signer address from server')
+      }
+
       setPaymentInfo({
         payTo,
         maxAmountRequired: amount,
-        network: requirements.network,
+        network,
         asset: tokenAddress,
         maxTimeoutSeconds: requirements.maxTimeoutSeconds || 60,
         extra: {
@@ -145,6 +152,7 @@ export default function Register() {
           decimals: tokenDecimals,
           name: tokenName,
           version: tokenVersion,
+          facilitatorSigner,
         },
       })
 
@@ -164,9 +172,11 @@ export default function Register() {
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1 hour expiry
       const value = BigInt(amount)
 
+      // NOTE: The spender is the FACILITATOR, not payTo
+      // The facilitator calls permit() then transferFrom(owner, payTo, amount)
       const message = {
         owner: address,
-        spender: payTo as `0x${string}`,
+        spender: facilitatorSigner as `0x${string}`,
         value,
         nonce,
         deadline,
@@ -180,15 +190,16 @@ export default function Register() {
       })
 
       // Step 4: Create x402 v1 payment payload with permit
+      // NOTE: V1 uses network names like "base", not CAIP-2 format
       const paymentPayload = {
         x402Version: 1,
         scheme: 'permit',
-        network: `eip155:${CHAIN_ID}`,
+        network, // Use the network name from requirements (e.g. "base")
         payload: {
           signature,
           authorization: {
             owner: address,
-            spender: payTo,
+            spender: facilitatorSigner, // Facilitator is the spender, not payTo
             value: amount,
             nonce: nonce.toString(),
             deadline: deadline.toString(),

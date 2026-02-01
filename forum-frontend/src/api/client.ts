@@ -304,7 +304,8 @@ export async function getThreads(
         return board?.slug === slug
       }),
       pagination: { total: 3, limit, offset, has_more: false },
-    }
+    },
+    isPaginatedResponse
   )
 }
 
