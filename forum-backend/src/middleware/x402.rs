@@ -21,7 +21,7 @@ fn build_payment_requirements(
     description: &str,
 ) -> PaymentRequirements {
     PaymentRequirements {
-        scheme: "exact".to_string(),
+        scheme: "permit".to_string(),
         network: config.payment_network.clone(),
         max_amount_required: amount.to_string(),
         resource: resource.to_string(),

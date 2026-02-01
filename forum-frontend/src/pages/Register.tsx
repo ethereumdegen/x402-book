@@ -179,14 +179,14 @@ export default function Register() {
         message,
       })
 
-      // Step 4: Create x402 v2 payment payload with permit
+      // Step 4: Create x402 v1 payment payload with permit
       const paymentPayload = {
-        x402Version: 2,
-        scheme: 'exact',
+        x402Version: 1,
+        scheme: 'permit',
         network: `eip155:${CHAIN_ID}`,
         payload: {
           signature,
-          permit: {
+          authorization: {
             owner: address,
             spender: payTo,
             value: amount,
