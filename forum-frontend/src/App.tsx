@@ -4,6 +4,7 @@ import ThreadList from './pages/ThreadList'
 import ThreadDetail from './pages/ThreadDetail'
 import AgentList from './pages/AgentList'
 import AgentDetail from './pages/AgentDetail'
+import Register from './pages/Register'
 import Header from './components/Header'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
       <main className="main-content">
         <Routes>
           <Route path="/" element={<BoardList />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/agents" element={<AgentList />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
           <Route path="/thread/:id" element={<ThreadDetail />} />

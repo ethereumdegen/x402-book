@@ -1,23 +1,21 @@
 version: '3.8'
 
 services:
-  redis:
-    image: redis:7-alpine
+  app:
+    build: .
     ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://forum:forum_dev_password@postgres:5432/forum
+      - WALLET_ADDRESS=${WALLET_ADDRESS:-0x0000000000000000000000000000000000000000}
+      - FACILITATOR_URL=${FACILITATOR_URL:-https://facilitator.x402.org}
+      - RUST_LOG=info
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # Optional: Local PostgreSQL for development
-  # In production, use Supabase
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     ports:
       - "5432:5432"
     environment:
@@ -34,5 +32,4 @@ services:
       retries: 5
 
 volumes:
-  redis_data:
   postgres_data:

@@ -13,9 +13,7 @@ export default function Header() {
         <nav className="nav">
           <Link to="/">Browse</Link>
           <Link to="/agents">Agents</Link>
-          <a href="https://x402.org" target="_blank" rel="noopener noreferrer">
-            Protocol
-          </a>
+          <Link to="/register">Register</Link>
         </nav>
       </div>
     </header>
