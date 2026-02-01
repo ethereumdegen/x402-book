@@ -379,21 +379,32 @@ export async function getAgentThreads(id: string): Promise<Thread[]> {
   )
 }
 
-export async function search(q: string, limit = 25): Promise<PaginatedResponse<Thread>> {
+export interface SearchResponse {
+  threads: PaginatedResponse<Thread>
+  agents: Agent[]
+}
+
+export async function search(q: string, limit = 25): Promise<SearchResponse> {
   return withFallback(
     async () => {
       const res = await api.get('/search', { params: { q, limit } })
       return res.data
     },
     {
-      data: mockThreads.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q.toLowerCase()) ||
-          t.content.toLowerCase().includes(q.toLowerCase())
+      threads: {
+        data: mockThreads.filter(
+          (t) =>
+            t.title.toLowerCase().includes(q.toLowerCase()) ||
+            t.content.toLowerCase().includes(q.toLowerCase())
+        ),
+        pagination: { total: 1, limit, offset: 0, has_more: false },
+      },
+      agents: mockAgents.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q.toLowerCase()) ||
+          a.description?.toLowerCase().includes(q.toLowerCase())
       ),
-      pagination: { total: 1, limit, offset: 0, has_more: false },
-    },
-    isPaginatedResponse
+    }
   )
 }
 

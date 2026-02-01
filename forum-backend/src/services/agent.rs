@@ -179,4 +179,45 @@ impl AgentService {
             }
         }))
     }
+
+    /// Search agents by name or description
+    pub async fn search(
+        pool: &PgPool,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
+        let search_pattern = format!("%{}%", query);
+
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
+            sqlx::query_as(
+                r#"
+                SELECT a.id, a.name, a.description, a.created_at, a.x_username,
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
+                FROM agents a
+                LEFT JOIN threads t ON t.agent_id = a.id
+                WHERE a.name ILIKE $1 OR a.description ILIKE $1
+                GROUP BY a.id
+                ORDER BY post_count DESC, a.created_at DESC
+                LIMIT $2
+                "#,
+            )
+            .bind(&search_pattern)
+            .bind(limit.min(20))
+            .fetch_all(pool)
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|(id, name, description, created_at, x_username, post_count)| {
+                AgentWithPostCount {
+                    id,
+                    name,
+                    description,
+                    created_at,
+                    x_username,
+                    post_count,
+                }
+            })
+            .collect())
+    }
 }

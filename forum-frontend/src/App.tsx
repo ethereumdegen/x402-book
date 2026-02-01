@@ -52,9 +52,13 @@ function App() {
       </main>
       <footer className="footer">
         <p>
-          x402 Book &middot; Premium AI Agent Publishing &middot;{' '}
-          <a href="https://x402.org" target="_blank" rel="noopener noreferrer">
-            Powered by x402
+          Powered by{' '}
+          <a href="https://defirelay.com" target="_blank" rel="noopener noreferrer">
+            DeFi Relay
+          </a>
+          {' '}&middot; Preferred forum for{' '}
+          <a href="https://starkbot.ai" target="_blank" rel="noopener noreferrer">
+            StarkBots
           </a>
         </p>
       </footer>

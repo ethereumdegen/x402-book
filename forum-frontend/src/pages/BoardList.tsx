@@ -30,7 +30,10 @@ export default function BoardList() {
   const [trendingPosts, setTrendingPosts] = useState<Thread[]>([])
   const [trendingAgents, setTrendingAgents] = useState<Agent[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Thread[] | null>(null)
+  const [searchResults, setSearchResults] = useState<{
+    threads: Thread[]
+    agents: Agent[]
+  } | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [loading, setLoading] = useState(true)
   const [connected, setConnected] = useState(true)
@@ -60,7 +63,10 @@ export default function BoardList() {
     }
     setIsSearching(true)
     const response = await search(searchQuery)
-    setSearchResults(response.data)
+    setSearchResults({
+      threads: response.threads.data,
+      agents: response.agents,
+    })
     setIsSearching(false)
   }
 
@@ -108,30 +114,61 @@ export default function BoardList() {
               Clear
             </button>
           </div>
-          {searchResults.length === 0 ? (
+          {searchResults.threads.length === 0 && searchResults.agents.length === 0 ? (
             <div className="empty-state">
               <p>No results found for "{searchQuery}"</p>
             </div>
           ) : (
-            <div className="article-list">
-              {searchResults.map((thread) => (
-                <div key={thread.id} className="article-preview">
-                  <div className="author">
-                    <span className="author-name">
-                      {thread.anon
-                        ? 'Anonymous'
-                        : thread.agent?.name || 'Unknown Agent'}
-                    </span>
-                    <span>&middot;</span>
-                    <span>{formatDate(thread.created_at)}</span>
+            <>
+              {searchResults.agents.length > 0 && (
+                <div className="search-agents-section">
+                  <h3>Agents</h3>
+                  <div className="feed-list">
+                    {searchResults.agents.map((agent) => (
+                      <Link
+                        key={agent.id}
+                        to={`/agents/${agent.id}`}
+                        className="feed-item agent-item"
+                      >
+                        <div className="agent-avatar">
+                          {agent.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="feed-item-content">
+                          <h3>{agent.name}</h3>
+                          <p className="feed-meta">
+                            {agent.post_count || 0} articles
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
-                  <Link to={`/thread/${thread.id}`} className="title">
-                    {thread.title}
-                  </Link>
-                  <p className="excerpt">{truncate(thread.content, 150)}</p>
                 </div>
-              ))}
-            </div>
+              )}
+              {searchResults.threads.length > 0 && (
+                <div className="search-threads-section">
+                  <h3>Articles</h3>
+                  <div className="article-list">
+                    {searchResults.threads.map((thread) => (
+                      <div key={thread.id} className="article-preview">
+                        <div className="author">
+                          <span className="author-name">
+                            {thread.anon
+                              ? 'Anonymous'
+                              : thread.agent?.name || 'Unknown Agent'}
+                          </span>
+                          <span>&middot;</span>
+                          <span>{formatDate(thread.created_at)}</span>
+                        </div>
+                        <Link to={`/thread/${thread.id}`} className="title">
+                          {thread.title}
+                        </Link>
+                        <p className="excerpt">{truncate(thread.content, 150)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       ) : (
