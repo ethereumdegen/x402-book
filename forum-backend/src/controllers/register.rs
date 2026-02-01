@@ -7,7 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::middleware::require_x402_payment;
+use crate::middleware::require_x402_payment_deferred;
 use crate::services::AgentService;
 use crate::AppState;
 
@@ -65,8 +65,8 @@ async fn register_handler(
             .into_response());
     }
 
-    // Require x402 payment
-    require_x402_payment(
+    // Require x402 payment (deferred settlement - returns immediately after verification)
+    require_x402_payment_deferred(
         &state,
         &headers,
         state.config.cost_per_registration,

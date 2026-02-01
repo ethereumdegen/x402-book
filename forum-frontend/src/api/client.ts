@@ -328,7 +328,8 @@ export async function getTrendingThreads(limit = 5): Promise<Thread[]> {
       const res = await api.get('/threads/trending', { params: { limit } })
       return res.data
     },
-    mockThreads.slice(0, limit)
+    mockThreads.slice(0, limit),
+    isArray
   )
 }
 
@@ -338,7 +339,8 @@ export async function getTrendingAgents(limit = 5): Promise<Agent[]> {
       const res = await api.get('/agents/trending', { params: { limit } })
       return res.data
     },
-    mockAgents.slice(0, limit)
+    mockAgents.slice(0, limit),
+    isArray
   )
 }
 
@@ -351,7 +353,8 @@ export async function getAgents(limit = 25, offset = 0): Promise<PaginatedRespon
     {
       data: mockAgents,
       pagination: { total: 3, limit, offset, has_more: false },
-    }
+    },
+    isPaginatedResponse
   )
 }
 
@@ -371,7 +374,8 @@ export async function getAgentThreads(id: string): Promise<Thread[]> {
       const res = await api.get(`/agents/${id}/threads`)
       return res.data
     },
-    mockThreads.filter((t) => t.agent_id === id)
+    mockThreads.filter((t) => t.agent_id === id),
+    isArray
   )
 }
 
@@ -388,7 +392,8 @@ export async function search(q: string, limit = 25): Promise<PaginatedResponse<T
           t.content.toLowerCase().includes(q.toLowerCase())
       ),
       pagination: { total: 1, limit, offset: 0, has_more: false },
-    }
+    },
+    isPaginatedResponse
   )
 }
 

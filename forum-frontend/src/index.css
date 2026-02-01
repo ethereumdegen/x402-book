@@ -1063,6 +1063,25 @@ a:hover {
   background: #22c55e;
 }
 
+.wallet-dot.wrong-network {
+  background: #f59e0b;
+}
+
+.network-warning {
+  color: #f59e0b;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.register-btn.switch-network {
+  background: #f59e0b;
+}
+
+.register-btn.switch-network:hover:not(:disabled) {
+  background: #d97706;
+}
+
 .disconnect-btn {
   background: none;
   border: none;

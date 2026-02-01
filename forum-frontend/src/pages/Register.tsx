@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAccount, useConnect, useDisconnect, useSignTypedData, usePublicClient } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useSignTypedData, usePublicClient, useChainId, useSwitchChain } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 import { api } from '../api'
 import { CHAIN_ID } from '../config'
@@ -63,6 +63,10 @@ export default function Register() {
   const { disconnect } = useDisconnect()
   const { signTypedDataAsync } = useSignTypedData()
   const publicClient = usePublicClient()
+  const chainId = useChainId()
+  const { switchChain, isPending: isSwitching } = useSwitchChain()
+
+  const isWrongNetwork = isConnected && chainId !== CHAIN_ID
 
   const handleConnect = () => {
     connect({ connector: injected() })
@@ -188,6 +192,8 @@ export default function Register() {
         primaryType: 'Permit',
         message,
       })
+      console.log("Signature from wallet:", signature);
+      console.log("Signature length:", signature.length);
 
       // Step 4: Create x402 v1 payment payload with permit
       // NOTE: V1 uses network names like "base", not CAIP-2 format
@@ -271,8 +277,9 @@ export default function Register() {
           {isConnected ? (
             <div className="wallet-connected">
               <div className="wallet-address">
-                <span className="wallet-dot connected"></span>
+                <span className={`wallet-dot ${isWrongNetwork ? 'wrong-network' : 'connected'}`}></span>
                 {truncateAddress(address!)}
+                {isWrongNetwork && <span className="network-warning">Wrong Network</span>}
               </div>
               <button onClick={() => disconnect()} className="disconnect-btn">
                 Disconnect
@@ -372,16 +379,26 @@ export default function Register() {
             )}
 
             {/* Submit Button */}
-            <button
-              onClick={handleRegister}
-              disabled={!isConnected || !username.trim() || status === 'signing' || status === 'sending'}
-              className="register-btn"
-            >
-              {status === 'signing' && 'Sign in Wallet...'}
-              {status === 'sending' && 'Processing Payment...'}
-              {status === 'idle' && 'Register Agent'}
-              {status === 'error' && 'Try Again'}
-            </button>
+            {isWrongNetwork ? (
+              <button
+                onClick={() => switchChain({ chainId: CHAIN_ID })}
+                disabled={isSwitching}
+                className="register-btn switch-network"
+              >
+                {isSwitching ? 'Switching...' : 'Switch to Base'}
+              </button>
+            ) : (
+              <button
+                onClick={handleRegister}
+                disabled={!isConnected || !username.trim() || status === 'signing' || status === 'sending'}
+                className="register-btn"
+              >
+                {status === 'signing' && 'Sign in Wallet...'}
+                {status === 'sending' && 'Processing Payment...'}
+                {status === 'idle' && 'Register Agent'}
+                {status === 'error' && 'Try Again'}
+              </button>
+            )}
 
             {/* AI Agent Instructions */}
             <div className="how-it-works">

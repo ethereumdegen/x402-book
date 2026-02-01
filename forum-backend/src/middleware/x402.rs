@@ -156,6 +156,31 @@ pub async fn require_x402_payment(
     resource: &str,
     description: &str,
 ) -> Result<Option<String>, Response> {
+    require_x402_payment_with_options(state, headers, amount, resource, description, false).await
+}
+
+/// Require x402 payment with deferred settlement option
+/// If defer_settlement is true, settlement happens in background and function returns immediately after verification
+/// Returns Ok(payer_address) on success, Err(Response) on failure
+pub async fn require_x402_payment_deferred(
+    state: &AppState,
+    headers: &HeaderMap,
+    amount: DomainU256,
+    resource: &str,
+    description: &str,
+) -> Result<Option<String>, Response> {
+    require_x402_payment_with_options(state, headers, amount, resource, description, true).await
+}
+
+/// Internal implementation with settlement options
+async fn require_x402_payment_with_options(
+    state: &AppState,
+    headers: &HeaderMap,
+    amount: DomainU256,
+    resource: &str,
+    description: &str,
+    defer_settlement: bool,
+) -> Result<Option<String>, Response> {
     let payment_header = headers.get("X-PAYMENT").and_then(|v| v.to_str().ok());
 
     match payment_header {
@@ -190,41 +215,71 @@ pub async fn require_x402_payment(
             {
                 Ok(verify_response) => {
                     if verify_response.is_valid {
-                        // Settle the payment using the same request
-                        match settle_payment(
-                            &state.http_client,
-                            &state.config.facilitator_url,
-                            &verify_request,
-                        )
-                        .await
-                        {
-                            Ok(settle_response) => {
-                                if settle_response.success {
-                                    tracing::info!(
-                                        "Payment settled: {:?}",
-                                        settle_response.transaction
-                                    );
-                                    Ok(settle_response.transaction)
-                                } else {
-                                    tracing::error!(
-                                        "Settlement failed: {:?}",
-                                        settle_response.error_reason
-                                    );
+                        let payer = verify_response.payer.clone();
+
+                        if defer_settlement {
+                            // Settle in background - don't wait for it
+                            let http_client = state.http_client.clone();
+                            let facilitator_url = state.config.facilitator_url.clone();
+                            tokio::spawn(async move {
+                                match settle_payment(&http_client, &facilitator_url, &verify_request).await {
+                                    Ok(settle_response) => {
+                                        if settle_response.success {
+                                            tracing::info!(
+                                                "Background settlement succeeded: {:?}",
+                                                settle_response.transaction
+                                            );
+                                        } else {
+                                            tracing::error!(
+                                                "Background settlement failed: {:?}",
+                                                settle_response.error_reason
+                                            );
+                                        }
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("Background settlement error: {}", e);
+                                    }
+                                }
+                            });
+                            // Return payer address immediately after verification
+                            Ok(payer)
+                        } else {
+                            // Settle synchronously (original behavior)
+                            match settle_payment(
+                                &state.http_client,
+                                &state.config.facilitator_url,
+                                &verify_request,
+                            )
+                            .await
+                            {
+                                Ok(settle_response) => {
+                                    if settle_response.success {
+                                        tracing::info!(
+                                            "Payment settled: {:?}",
+                                            settle_response.transaction
+                                        );
+                                        Ok(settle_response.transaction)
+                                    } else {
+                                        tracing::error!(
+                                            "Settlement failed: {:?}",
+                                            settle_response.error_reason
+                                        );
+                                        Err(payment_error_response(
+                                            StatusCode::PAYMENT_REQUIRED,
+                                            &format!(
+                                                "Payment settlement failed: {}",
+                                                settle_response.error_reason.unwrap_or_default()
+                                            ),
+                                        ))
+                                    }
+                                }
+                                Err(e) => {
+                                    tracing::error!("Settlement error: {}", e);
                                     Err(payment_error_response(
-                                        StatusCode::PAYMENT_REQUIRED,
-                                        &format!(
-                                            "Payment settlement failed: {}",
-                                            settle_response.error_reason.unwrap_or_default()
-                                        ),
+                                        StatusCode::BAD_GATEWAY,
+                                        &format!("Settlement error: {}", e),
                                     ))
                                 }
-                            }
-                            Err(e) => {
-                                tracing::error!("Settlement error: {}", e);
-                                Err(payment_error_response(
-                                    StatusCode::BAD_GATEWAY,
-                                    &format!("Settlement error: {}", e),
-                                ))
                             }
                         }
                     } else {
