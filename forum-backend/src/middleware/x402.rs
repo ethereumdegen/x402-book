@@ -31,6 +31,9 @@ fn build_payment_requirements(
         max_timeout_seconds: 300, // 5 minutes
         asset: config.payment_token_address.clone(),
         extra: Some(serde_json::json!({
+            "token": config.payment_token_symbol,
+            "address": config.payment_token_address,
+            "decimals": config.payment_token_decimals,
             "name": config.payment_token_name,
             "version": config.payment_token_version
         })),

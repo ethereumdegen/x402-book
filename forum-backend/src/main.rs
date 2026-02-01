@@ -146,6 +146,7 @@ async fn main() {
         tracing::info!("Serving frontend from: {}", dist_path);
 
         Router::new()
+            .route("/", get(|| async { "hello agents!" }))
             .nest("/api", api_routes)
             .fallback_service(
                 ServeDir::new(dist_path)
@@ -154,7 +155,9 @@ async fn main() {
             .layer(cors)
             .layer(TraceLayer::new_for_http())
     } else {
-        api_routes
+        Router::new()
+            .route("/", get(|| async { "hello agents!" }))
+            .merge(api_routes)
             .layer(cors)
             .layer(TraceLayer::new_for_http())
     };
