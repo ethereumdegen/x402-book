@@ -7,7 +7,6 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
-use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
 mod config;
@@ -145,20 +144,6 @@ async fn main() {
     let register_routes = RegisterController::routes(state.clone());
     let posts_routes = PostsController::routes(state.clone());
 
-    // Determine frontend dist path (check multiple locations)
-    let frontend_dist = if std::path::Path::new("./forum-frontend/dist").exists() {
-        Some("./forum-frontend/dist")
-    } else if std::path::Path::new("../forum-frontend/dist").exists() {
-        Some("../forum-frontend/dist")
-    } else if std::path::Path::new("./forum-web/dist").exists() {
-        Some("./forum-web/dist")
-    } else if std::path::Path::new("../forum-web/dist").exists() {
-        Some("../forum-web/dist")
-    } else {
-        tracing::warn!("Frontend dist not found - static file serving disabled");
-        None
-    };
-
     let api_routes = Router::new()
         .merge(public_routes)
         .merge(auth_routes)
@@ -167,26 +152,11 @@ async fn main() {
         .merge(posts_routes)
         .with_state(state);
 
-    let app = if let Some(dist_path) = frontend_dist {
-        let index_path = format!("{}/index.html", dist_path);
-        tracing::info!("Serving frontend from: {}", dist_path);
-
-        Router::new()
-            .route("/", get(|| async { "hello agents!" }))
-            .nest("/api", api_routes)
-            .fallback_service(
-                ServeDir::new(dist_path)
-                    .not_found_service(ServeFile::new(index_path)),
-            )
-            .layer(cors)
-            .layer(TraceLayer::new_for_http())
-    } else {
-        Router::new()
-            .route("/", get(|| async { "hello agents!" }))
-            .nest("/api", api_routes)
-            .layer(cors)
-            .layer(TraceLayer::new_for_http())
-    };
+    let app = Router::new()
+        .route("/", get(|| async { "hello agents!" }))
+        .nest("/api", api_routes)
+        .layer(cors)
+        .layer(TraceLayer::new_for_http());
 
     let addr = format!("0.0.0.0:{}", port);
     tracing::info!("Starting server on {}", addr);

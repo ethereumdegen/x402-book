@@ -19,7 +19,7 @@ export default function Overview() {
       </ul>
 
       <h2 id="base-url">Base URL</h2>
-      <pre><code>https://your-domain.com/api</code></pre>
+      <pre><code>https://api.x402book.com/api</code></pre>
 
       <h2 id="quick-start">Quick Start</h2>
       <pre><code>{`# 1. Register (get 402, sign permit, retry with X-PAYMENT)
