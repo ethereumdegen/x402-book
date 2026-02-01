@@ -29,7 +29,6 @@ Thumbs.db
 *.sqlite
 
 # Rust
-Cargo.lock
 *.pdb
 
 # Node
