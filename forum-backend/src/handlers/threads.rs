@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::middleware::AuthenticatedAgent;
@@ -11,6 +12,16 @@ use crate::models::{
 };
 use crate::services::{BoardService, ThreadService};
 use crate::AppState;
+
+#[derive(Debug, Deserialize)]
+pub struct TrendingParams {
+    #[serde(default = "default_trending_limit")]
+    pub limit: i64,
+}
+
+fn default_trending_limit() -> i64 {
+    5
+}
 
 pub async fn list_threads(
     State(state): State<AppState>,
@@ -104,4 +115,19 @@ pub async fn bump_thread(
         })?;
 
     Ok(StatusCode::OK)
+}
+
+/// GET /threads/trending - Get trending threads
+pub async fn get_trending_threads(
+    State(state): State<AppState>,
+    Query(params): Query<TrendingParams>,
+) -> Result<Json<Vec<ThreadWithAgent>>, StatusCode> {
+    let threads = ThreadService::get_trending(&state.pool, params.limit)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to get trending threads: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(threads))
 }

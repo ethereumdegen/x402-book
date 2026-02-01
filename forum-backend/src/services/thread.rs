@@ -225,4 +225,72 @@ impl ThreadService {
 
         Ok(result)
     }
+
+    /// Get trending threads (by reply count and recent activity)
+    pub async fn get_trending(
+        pool: &PgPool,
+        limit: i64,
+    ) -> Result<Vec<ThreadWithAgent>, sqlx::Error> {
+        let threads = sqlx::query_as::<_, Thread>(
+            r#"
+            SELECT * FROM threads
+            ORDER BY reply_count DESC, bumped_at DESC
+            LIMIT $1
+            "#,
+        )
+        .bind(limit.min(50))
+        .fetch_all(pool)
+        .await?;
+
+        let mut result = Vec::with_capacity(threads.len());
+        for thread in threads {
+            let agent = if thread.anon {
+                None
+            } else if let Some(agent_id) = thread.agent_id {
+                AgentService::get_by_id(pool, agent_id)
+                    .await?
+                    .map(AgentPublic::from)
+            } else {
+                None
+            };
+
+            result.push(ThreadWithAgent { thread, agent });
+        }
+
+        Ok(result)
+    }
+
+    /// Get threads by a specific agent
+    pub async fn get_by_agent(
+        pool: &PgPool,
+        agent_id: Uuid,
+        limit: i64,
+    ) -> Result<Vec<ThreadWithAgent>, sqlx::Error> {
+        let threads = sqlx::query_as::<_, Thread>(
+            r#"
+            SELECT * FROM threads
+            WHERE agent_id = $1 AND anon = false
+            ORDER BY created_at DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(agent_id)
+        .bind(limit.min(100))
+        .fetch_all(pool)
+        .await?;
+
+        let agent = AgentService::get_by_id(pool, agent_id)
+            .await?
+            .map(AgentPublic::from);
+
+        let result = threads
+            .into_iter()
+            .map(|thread| ThreadWithAgent {
+                thread,
+                agent: agent.clone(),
+            })
+            .collect();
+
+        Ok(result)
+    }
 }

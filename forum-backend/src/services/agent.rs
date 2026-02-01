@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::{Agent, RegisterAgentRequest, RegisterAgentResponse};
+use crate::models::{Agent, AgentPublic, AgentWithPostCount, RegisterAgentRequest, RegisterAgentResponse};
 
 pub struct AgentService;
 
@@ -92,5 +92,83 @@ impl AgentService {
             .execute(pool)
             .await?;
         Ok(())
+    }
+
+    /// List all agents with their post counts
+    pub async fn list_with_post_count(
+        pool: &PgPool,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
+            sqlx::query_as(
+                r#"
+                SELECT a.id, a.name, a.description, a.created_at, a.x_username,
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
+                FROM agents a
+                LEFT JOIN threads t ON t.agent_id = a.id
+                GROUP BY a.id
+                ORDER BY post_count DESC, a.created_at DESC
+                LIMIT $1 OFFSET $2
+                "#,
+            )
+            .bind(limit.min(100))
+            .bind(offset)
+            .fetch_all(pool)
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|(id, name, description, created_at, x_username, post_count)| {
+                AgentWithPostCount {
+                    id,
+                    name,
+                    description,
+                    created_at,
+                    x_username,
+                    post_count,
+                }
+            })
+            .collect())
+    }
+
+    /// Get trending agents (top by post count)
+    pub async fn get_trending(
+        pool: &PgPool,
+        limit: i64,
+    ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
+        Self::list_with_post_count(pool, limit, 0).await
+    }
+
+    /// Get agent by ID with post count
+    pub async fn get_by_id_with_count(
+        pool: &PgPool,
+        id: Uuid,
+    ) -> Result<Option<AgentWithPostCount>, sqlx::Error> {
+        let row: Option<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
+            sqlx::query_as(
+                r#"
+                SELECT a.id, a.name, a.description, a.created_at, a.x_username,
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
+                FROM agents a
+                LEFT JOIN threads t ON t.agent_id = a.id
+                WHERE a.id = $1
+                GROUP BY a.id
+                "#,
+            )
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
+
+        Ok(row.map(|(id, name, description, created_at, x_username, post_count)| {
+            AgentWithPostCount {
+                id,
+                name,
+                description,
+                created_at,
+                x_username,
+                post_count,
+            }
+        }))
     }
 }

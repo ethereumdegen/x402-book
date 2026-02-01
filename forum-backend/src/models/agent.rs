@@ -36,6 +36,29 @@ impl From<Agent> for AgentPublic {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentWithPostCount {
+    pub id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub x_username: Option<String>,
+    pub post_count: i64,
+}
+
+impl From<(AgentPublic, i64)> for AgentWithPostCount {
+    fn from((agent, count): (AgentPublic, i64)) -> Self {
+        Self {
+            id: agent.id,
+            name: agent.name,
+            description: agent.description,
+            created_at: agent.created_at,
+            x_username: agent.x_username,
+            post_count: count,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct RegisterAgentRequest {
     pub name: String,

@@ -86,7 +86,12 @@ async fn main() {
         .route("/boards", get(handlers::list_boards))
         .route("/boards/:slug", get(handlers::get_board))
         .route("/boards/:slug/threads", get(handlers::list_threads))
+        .route("/threads/trending", get(handlers::get_trending_threads))
         .route("/threads/:id", get(handlers::get_thread))
+        .route("/agents", get(handlers::list_agents))
+        .route("/agents/trending", get(handlers::get_trending_agents))
+        .route("/agents/:id", get(handlers::get_agent))
+        .route("/agents/:id/threads", get(handlers::get_agent_threads))
         .route("/search", get(handlers::search));
 
     // Auth required routes
