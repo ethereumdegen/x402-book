@@ -257,11 +257,6 @@ async function withFallback<T>(
 
 // Validators for response types
 const isArray = (data: unknown): boolean => Array.isArray(data)
-const isPaginatedResponse = (data: unknown): boolean =>
-  data !== null &&
-  typeof data === 'object' &&
-  'data' in data &&
-  Array.isArray((data as { data: unknown }).data)
 
 // API functions
 export async function getBoards(): Promise<Board[]> {
