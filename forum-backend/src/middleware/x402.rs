@@ -6,13 +6,36 @@ use axum::{
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 
 use crate::models::x402::{
-    PaymentOption, PaymentRequiredResponse, SettleRequest, SettleResponse, VerifyRequest,
-    VerifyResponse,
+    PaymentRequiredResponse, PaymentRequirements, SettleResponse, VerifyRequest, VerifyResponse,
 };
 use crate::AppState;
 
 use crate::config::Config;
 use crate::domain_types::DomainU256;
+
+/// Build payment requirements from config
+fn build_payment_requirements(
+    config: &Config,
+    amount: DomainU256,
+    resource: &str,
+    description: &str,
+) -> PaymentRequirements {
+    PaymentRequirements {
+        scheme: "exact".to_string(),
+        network: config.payment_network.clone(),
+        max_amount_required: amount.to_string(),
+        resource: resource.to_string(),
+        description: description.to_string(),
+        mime_type: "application/json".to_string(),
+        pay_to: config.wallet_address.clone(),
+        max_timeout_seconds: 300, // 5 minutes
+        asset: config.payment_token_address.clone(),
+        extra: Some(serde_json::json!({
+            "name": config.payment_token_name,
+            "version": config.payment_token_version
+        })),
+    }
+}
 
 /// Generate a 402 Payment Required response
 pub fn payment_required_response(
@@ -21,23 +44,11 @@ pub fn payment_required_response(
     resource: &str,
     description: &str,
 ) -> Response {
+    let requirements = build_payment_requirements(config, amount, resource, description);
+
     let response = PaymentRequiredResponse {
         x402_version: 1,
-        accepts: vec![PaymentOption {
-            scheme: "exact".to_string(),
-            network: config.payment_network.clone(),
-            max_amount_required: amount.to_string(),
-            resource: resource.to_string(),
-            description: description.to_string(),
-            pay_to: config.wallet_address.clone(),
-            extra: Some(serde_json::json!({
-                "token": config.payment_token_symbol,
-                "address": config.payment_token_address,
-                "decimals": config.payment_token_decimals,
-                "name": config.payment_token_name,
-                "version": config.payment_token_version
-            })),
-        }],
+        accepts: vec![requirements],
         error: None,
     };
 
@@ -50,30 +61,44 @@ pub fn payment_required_response(
         .unwrap()
 }
 
-/// Verify payment with facilitator
-async fn verify_payment(
-    http_client: &reqwest::Client,
-    facilitator_url: &str,
+/// Decode payment header and build verify request
+fn build_verify_request(
     payment_header: &str,
-) -> Result<VerifyResponse, String> {
+    payment_requirements: PaymentRequirements,
+) -> Result<VerifyRequest, String> {
     let payload_bytes = BASE64
         .decode(payment_header)
         .map_err(|e| format!("Invalid payment header encoding: {}", e))?;
 
-    let payload: serde_json::Value = serde_json::from_slice(&payload_bytes)
+    let payment_payload: serde_json::Value = serde_json::from_slice(&payload_bytes)
         .map_err(|e| format!("Invalid payment payload JSON: {}", e))?;
 
+    Ok(VerifyRequest {
+        x402_version: 1,
+        payment_payload,
+        payment_requirements,
+    })
+}
+
+/// Verify payment with facilitator
+async fn verify_payment(
+    http_client: &reqwest::Client,
+    facilitator_url: &str,
+    verify_request: &VerifyRequest,
+) -> Result<VerifyResponse, String> {
     let verify_url = format!("{}/verify", facilitator_url);
 
     let response = http_client
         .post(&verify_url)
-        .json(&VerifyRequest { payload })
+        .json(verify_request)
         .send()
         .await
         .map_err(|e| format!("Failed to contact facilitator: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!("Facilitator returned error: {}", response.status()));
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("Facilitator returned error: {} - {}", status, body));
     }
 
     response
@@ -82,28 +107,25 @@ async fn verify_payment(
         .map_err(|e| format!("Failed to parse verify response: {}", e))
 }
 
-/// Settle payment with facilitator
+/// Settle payment with facilitator (uses same request format as verify)
 async fn settle_payment(
     http_client: &reqwest::Client,
     facilitator_url: &str,
-    payment_id: &str,
+    settle_request: &VerifyRequest,
 ) -> Result<SettleResponse, String> {
     let settle_url = format!("{}/settle", facilitator_url);
 
     let response = http_client
         .post(&settle_url)
-        .json(&SettleRequest {
-            payment_id: payment_id.to_string(),
-        })
+        .json(settle_request)
         .send()
         .await
         .map_err(|e| format!("Failed to contact facilitator for settlement: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "Facilitator settlement error: {}",
-            response.status()
-        ));
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return Err(format!("Facilitator settlement error: {} - {}", status, body));
     }
 
     response
@@ -143,59 +165,74 @@ pub async fn require_x402_payment(
             ))
         }
         Some(payment) => {
+            // Build payment requirements (must match what we return in 402)
+            let payment_requirements =
+                build_payment_requirements(&state.config, amount, resource, description);
+
+            // Build verify request
+            let verify_request = build_verify_request(payment, payment_requirements)
+                .map_err(|e| {
+                    tracing::error!("Failed to build verify request: {}", e);
+                    payment_error_response(StatusCode::BAD_REQUEST, &e)
+                })?;
+
             // Verify payment
-            match verify_payment(&state.http_client, &state.config.facilitator_url, payment).await {
+            match verify_payment(
+                &state.http_client,
+                &state.config.facilitator_url,
+                &verify_request,
+            )
+            .await
+            {
                 Ok(verify_response) => {
-                    if verify_response.valid {
-                        // Settle the payment
-                        if let Some(payment_id) = verify_response.payment_id {
-                            match settle_payment(
-                                &state.http_client,
-                                &state.config.facilitator_url,
-                                &payment_id,
-                            )
-                            .await
-                            {
-                                Ok(settle_response) => {
-                                    if settle_response.settled {
-                                        tracing::info!(
-                                            "Payment settled: {:?}",
-                                            settle_response.tx_hash
-                                        );
-                                        Ok(settle_response.tx_hash)
-                                    } else {
-                                        tracing::error!(
-                                            "Settlement failed: {:?}",
-                                            settle_response.error
-                                        );
-                                        Err(payment_error_response(
-                                            StatusCode::PAYMENT_REQUIRED,
-                                            "Payment settlement failed",
-                                        ))
-                                    }
-                                }
-                                Err(e) => {
-                                    tracing::error!("Settlement error: {}", e);
+                    if verify_response.is_valid {
+                        // Settle the payment using the same request
+                        match settle_payment(
+                            &state.http_client,
+                            &state.config.facilitator_url,
+                            &verify_request,
+                        )
+                        .await
+                        {
+                            Ok(settle_response) => {
+                                if settle_response.success {
+                                    tracing::info!(
+                                        "Payment settled: {:?}",
+                                        settle_response.transaction
+                                    );
+                                    Ok(settle_response.transaction)
+                                } else {
+                                    tracing::error!(
+                                        "Settlement failed: {:?}",
+                                        settle_response.error_reason
+                                    );
                                     Err(payment_error_response(
-                                        StatusCode::BAD_GATEWAY,
-                                        &format!("Settlement error: {}", e),
+                                        StatusCode::PAYMENT_REQUIRED,
+                                        &format!(
+                                            "Payment settlement failed: {}",
+                                            settle_response.error_reason.unwrap_or_default()
+                                        ),
                                     ))
                                 }
                             }
-                        } else {
-                            tracing::info!("Payment verified (no payment_id returned)");
-                            Ok(None)
+                            Err(e) => {
+                                tracing::error!("Settlement error: {}", e);
+                                Err(payment_error_response(
+                                    StatusCode::BAD_GATEWAY,
+                                    &format!("Settlement error: {}", e),
+                                ))
+                            }
                         }
                     } else {
                         tracing::warn!(
                             "Payment verification failed: {:?}",
-                            verify_response.error
+                            verify_response.invalid_reason
                         );
                         Err(payment_error_response(
                             StatusCode::PAYMENT_REQUIRED,
                             &format!(
                                 "Payment verification failed: {}",
-                                verify_response.error.unwrap_or_default()
+                                verify_response.invalid_reason.unwrap_or_default()
                             ),
                         ))
                     }
