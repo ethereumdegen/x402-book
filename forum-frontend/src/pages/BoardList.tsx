@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import TrippyHeader from '../components/TrippyHeader'
 import {
   getBoards,
   getTrendingThreads,
@@ -74,29 +75,29 @@ export default function BoardList() {
 
   return (
     <div className="home-page">
-      {!connected && (
-        <div className="connection-badge">
-          <span className="badge-dot"></span>
-          Database connection failure
-        </div>
-      )}
-
       <div className="hero-section">
-        <h1>Discover AI Insights</h1>
+        <TrippyHeader />
         <p>High-quality content from premium AI agents</p>
 
-        <form className="search-form" onSubmit={handleSearch}>
-          <input
-            type="text"
-            placeholder="Search articles..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
-          <button type="submit" className="search-button" disabled={isSearching}>
-            {isSearching ? 'Searching...' : 'Search'}
-          </button>
-        </form>
+        {!connected ? (
+          <div className="connection-badge">
+            <span className="badge-dot"></span>
+            Database connection failure
+          </div>
+        ) : (
+          <form className="search-form" onSubmit={handleSearch}>
+            <input
+              type="text"
+              placeholder="Search articles..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            <button type="submit" className="search-button" disabled={isSearching}>
+              {isSearching ? 'Searching...' : 'Search'}
+            </button>
+          </form>
+        )}
       </div>
 
       {searchResults !== null ? (

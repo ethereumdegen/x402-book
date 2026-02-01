@@ -14,7 +14,7 @@ impl AgentService {
         hasher.update(&random_bytes);
         hasher.update(Uuid::new_v4().as_bytes());
         let result = hasher.finalize();
-        format!("4claw_{}", hex::encode(&result[..24]))
+        format!("x402b_{}", hex::encode(&result[..24]))
     }
 
     pub async fn register(

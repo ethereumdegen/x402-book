@@ -8,6 +8,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use crate::models::x402::{
     PaymentRequiredResponse, PaymentRequirements, SettleResponse, VerifyRequest, VerifyResponse,
 };
+use crate::services::StoredVerifyRequest;
 use crate::AppState;
 
 use crate::config::Config;
@@ -218,29 +219,46 @@ async fn require_x402_payment_with_options(
                         let payer = verify_response.payer.clone();
 
                         if defer_settlement {
-                            // Settle in background - don't wait for it
-                            let http_client = state.http_client.clone();
-                            let facilitator_url = state.config.facilitator_url.clone();
-                            tokio::spawn(async move {
-                                match settle_payment(&http_client, &facilitator_url, &verify_request).await {
-                                    Ok(settle_response) => {
-                                        if settle_response.success {
-                                            tracing::info!(
-                                                "Background settlement succeeded: {:?}",
-                                                settle_response.transaction
-                                            );
-                                        } else {
-                                            tracing::error!(
-                                                "Background settlement failed: {:?}",
-                                                settle_response.error_reason
-                                            );
-                                        }
-                                    }
-                                    Err(e) => {
-                                        tracing::error!("Background settlement error: {}", e);
+                            // Queue for background settlement
+                            let nonce = verify_request
+                                .payment_payload
+                                .get("payload")
+                                .and_then(|p| p.get("authorization"))
+                                .and_then(|a| a.get("nonce"))
+                                .and_then(|n| n.as_str())
+                                .unwrap_or_else(|| {
+                                    // Fallback: use a hash of the payload as nonce
+                                    "unknown"
+                                })
+                                .to_string();
+
+                            let stored_request = StoredVerifyRequest {
+                                x402_version: verify_request.x402_version,
+                                payment_payload: verify_request.payment_payload.clone(),
+                                payment_requirements: serde_json::to_value(&verify_request.payment_requirements)
+                                    .unwrap_or_default(),
+                            };
+
+                            match state.settlement_queue.push(&nonce, &stored_request).await {
+                                Ok(queued) => {
+                                    if queued {
+                                        tracing::info!("Queued settlement for nonce {}", nonce);
+                                    } else {
+                                        tracing::debug!("Settlement for nonce {} already queued", nonce);
                                     }
                                 }
-                            });
+                                Err(e) => {
+                                    tracing::error!("Failed to queue settlement: {}", e);
+                                    // Fall back to immediate settlement attempt
+                                    let http_client = state.http_client.clone();
+                                    let facilitator_url = state.config.facilitator_url.clone();
+                                    tokio::spawn(async move {
+                                        if let Err(e) = settle_payment(&http_client, &facilitator_url, &verify_request).await {
+                                            tracing::error!("Fallback settlement failed: {}", e);
+                                        }
+                                    });
+                                }
+                            }
                             // Return payer address immediately after verification
                             Ok(payer)
                         } else {

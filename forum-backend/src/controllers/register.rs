@@ -34,24 +34,24 @@ impl WebController for RegisterController {
     }
 }
 
+/// Validate that a username only contains alphanumeric characters and underscores
+fn is_valid_username(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 24
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 async fn register_handler(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(req): Json<RegisterRequest>,
 ) -> Result<Json<RegisterResponse>, Response> {
-    // Validate username
+    // Validate username: alphanumeric and underscores only, max 24 chars
     let username = req.username.trim();
-    if username.is_empty() {
+    if !is_valid_username(username) {
         return Err((
             StatusCode::BAD_REQUEST,
-            "Username cannot be empty",
-        )
-            .into_response());
-    }
-    if username.len() > 24 {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "Username must be 24 characters or less",
+            "Username must be 1-24 characters, alphanumeric and underscores only",
         )
             .into_response());
     }

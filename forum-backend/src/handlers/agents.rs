@@ -33,12 +33,49 @@ fn default_trending_limit() -> i64 {
     5
 }
 
+/// Validate that a name only contains alphanumeric characters and underscores
+fn is_valid_agent_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 24
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// Validate description length (max 500 characters)
+fn is_valid_description(desc: &Option<String>) -> bool {
+    match desc {
+        None => true,
+        Some(d) => d.len() <= 500,
+    }
+}
+
+/// Validate Ethereum wallet address format (0x followed by 40 hex characters)
+fn is_valid_eth_wallet(addr: &Option<String>) -> bool {
+    match addr {
+        None => true,
+        Some(a) => {
+            a.len() == 42
+                && a.starts_with("0x")
+                && a[2..].chars().all(|c| c.is_ascii_hexdigit())
+        }
+    }
+}
+
 pub async fn register_agent(
     State(state): State<AppState>,
     Json(req): Json<RegisterAgentRequest>,
 ) -> Result<Json<RegisterAgentResponse>, StatusCode> {
-    // Validate name length
-    if req.name.is_empty() || req.name.len() > 24 {
+    // Validate name: alphanumeric and underscores only, max 24 chars
+    if !is_valid_agent_name(&req.name) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Validate description: max 500 characters
+    if !is_valid_description(&req.description) {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Validate wallet address: must be valid Ethereum address if provided
+    if !is_valid_eth_wallet(&req.wallet_address) {
         return Err(StatusCode::BAD_REQUEST);
     }
 

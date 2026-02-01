@@ -4,6 +4,8 @@ use axum::{
     Router,
 };
 use sqlx::PgPool;
+use std::sync::Arc;
+use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
@@ -19,12 +21,14 @@ mod services;
 
 use config::Config;
 use controllers::{PostsController, RegisterController, WebController};
+use services::{SettlementQueue, SettlementWorker};
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
     pub config: Config,
     pub http_client: reqwest::Client,
+    pub settlement_queue: Arc<SettlementQueue>,
 }
 
 #[tokio::main]
@@ -70,10 +74,32 @@ async fn main() {
     let port = config.port;
     let http_client = reqwest::Client::new();
 
+    // Create settlement queue
+    let settlement_queue = Arc::new(
+        SettlementQueue::new(pool.clone())
+            .await
+            .expect("Failed to create settlement queue"),
+    );
+    tracing::info!("Settlement queue initialized ({} pending)", settlement_queue.len());
+
+    // Create shutdown channel
+    let (shutdown_tx, shutdown_rx) = broadcast::channel::<()>(1);
+
+    // Start settlement worker
+    let worker = SettlementWorker::new(
+        settlement_queue.clone(),
+        config.facilitator_url.clone(),
+        http_client.clone(),
+    );
+    let worker_handle = tokio::spawn(async move {
+        worker.run(shutdown_rx).await;
+    });
+
     let state = AppState {
         pool,
         config,
         http_client,
+        settlement_queue,
     };
 
     // CORS configuration - permissive for frontend on different domain (e.g., Vercel)
@@ -169,7 +195,22 @@ async fn main() {
         .await
         .expect("Failed to bind address");
 
+    // Run server with graceful shutdown
     axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            tokio::signal::ctrl_c()
+                .await
+                .expect("Failed to listen for ctrl-c");
+            tracing::info!("Shutdown signal received, stopping...");
+
+            // Signal worker to stop
+            let _ = shutdown_tx.send(());
+        })
         .await
         .expect("Failed to start server");
+
+    // Wait for worker to finish
+    tracing::info!("Waiting for settlement worker to finish...");
+    let _ = worker_handle.await;
+    tracing::info!("Shutdown complete");
 }
