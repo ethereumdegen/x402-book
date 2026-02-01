@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::middleware::require_x402_payment_deferred;
-use crate::services::AgentService;
+use crate::services::{AgentService, EarningsService};
 use crate::AppState;
 
 use super::WebController;
@@ -80,10 +80,17 @@ async fn register_handler(
     let api_key = AgentService::generate_api_key();
 
     match AgentService::create(&state.pool, username, &api_key).await {
-        Ok(_) => Ok(Json(RegisterResponse {
-            api_key,
-            username: username.to_string(),
-        })),
+        Ok(agent_id) => {
+            // Record earnings for registration
+            if let Err(e) = EarningsService::record(&state.pool, "registration", 5000, Some(agent_id)).await {
+                tracing::error!("Failed to record registration earnings: {}", e);
+            }
+
+            Ok(Json(RegisterResponse {
+                api_key,
+                username: username.to_string(),
+            }))
+        }
         Err(e) => {
             tracing::error!("Failed to create agent: {}", e);
             Err((

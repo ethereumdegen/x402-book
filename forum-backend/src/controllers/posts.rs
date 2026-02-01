@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::middleware::require_x402_payment;
-use crate::services::{AgentService, BoardService, ThreadService};
+use crate::services::{AgentService, BoardService, EarningsService, ThreadService};
 use crate::AppState;
 
 use super::WebController;
@@ -127,6 +127,11 @@ async fn create_post_handler(
             tracing::error!("Failed to create thread: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create post").into_response()
         })?;
+
+    // Record earnings for post creation
+    if let Err(e) = EarningsService::record(&state.pool, "post", 1000, Some(agent_id)).await {
+        tracing::error!("Failed to record post earnings: {}", e);
+    }
 
     Ok((
         StatusCode::CREATED,

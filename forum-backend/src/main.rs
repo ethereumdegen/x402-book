@@ -19,7 +19,7 @@ mod models;
 mod services;
 
 use config::Config;
-use controllers::{PostsController, RegisterController, WebController};
+use controllers::{EarningsController, PostsController, RegisterController, WebController};
 use services::{SettlementQueue, SettlementWorker};
 
 #[derive(Clone)]
@@ -143,6 +143,7 @@ async fn main() {
     // x402-gated controller routes
     let register_routes = RegisterController::routes(state.clone());
     let posts_routes = PostsController::routes(state.clone());
+    let earnings_routes = EarningsController::routes(state.clone());
 
     let api_routes = Router::new()
         .merge(public_routes)
@@ -150,6 +151,7 @@ async fn main() {
         .merge(write_routes)
         .merge(register_routes)
         .merge(posts_routes)
+        .merge(earnings_routes)
         .with_state(state);
 
     let app = Router::new()

@@ -2,9 +2,11 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import DocsSidenav from './DocsSidenav'
 import docsConfig from '../../config/docs-config'
+import { SEO, BreadcrumbSchema, SITE_URL } from '../../components/SEO'
 
 interface Props {
   title: string
+  description?: string
   children: ReactNode
 }
 
@@ -14,7 +16,7 @@ interface TocItem {
   level: number
 }
 
-export default function DocsWrapper({ title, children }: Props) {
+export default function DocsWrapper({ title, description, children }: Props) {
   const location = useLocation()
   const [toc, setToc] = useState<TocItem[]>([])
   const [activeId, setActiveId] = useState<string>('')
@@ -23,6 +25,17 @@ export default function DocsWrapper({ title, children }: Props) {
   const currentSection = docsConfig.sections.find(section =>
     section.items.some(item => item.to === location.pathname)
   )
+
+  const pageUrl = `${SITE_URL}${location.pathname}`
+  const pageDescription = description || `${title} - x402 Book API documentation. Learn how to integrate with the x402 payment protocol for AI agent publishing.`
+
+  const breadcrumbs = [
+    { name: 'Home', url: SITE_URL },
+    { name: 'Documentation', url: `${SITE_URL}/docs` },
+    ...(currentSection && location.pathname !== '/docs'
+      ? [{ name: title, url: pageUrl }]
+      : []),
+  ]
 
   // Extract table of contents from rendered content
   useEffect(() => {
@@ -73,32 +86,42 @@ export default function DocsWrapper({ title, children }: Props) {
 
   return (
     <div className="docs-layout">
+      <SEO
+        title={`${title} - Documentation`}
+        description={pageDescription}
+        url={pageUrl}
+        type="website"
+      />
+      <BreadcrumbSchema items={breadcrumbs} />
+
       {/* Left Sidebar */}
-      <aside className="docs-sidebar">
-        <Link to="/" className="docs-logo">
+      <aside className="docs-sidebar" aria-label="Documentation navigation">
+        <Link to="/" className="docs-logo" aria-label="Go to x402 Book homepage">
           x402 <span>Book</span>
         </Link>
         <DocsSidenav />
       </aside>
 
       {/* Main Content */}
-      <main className="docs-main">
+      <main className="docs-main" id="main-content">
         <div className="docs-header">
           {currentSection && (
-            <div className="docs-breadcrumb">{currentSection.title}</div>
+            <nav className="docs-breadcrumb" aria-label="Breadcrumb">
+              {currentSection.title}
+            </nav>
           )}
           <h1>{title}</h1>
         </div>
-        <div className="docs-content">
+        <article className="docs-content">
           {children}
-        </div>
+        </article>
       </main>
 
       {/* Right Sidebar - Table of Contents */}
       {toc.length > 0 && (
-        <aside className="docs-toc">
-          <h4>On this page</h4>
-          <nav>
+        <aside className="docs-toc" aria-label="Table of contents">
+          <h4 id="toc-heading">On this page</h4>
+          <nav aria-labelledby="toc-heading">
             {toc.map((item) => (
               <button
                 key={item.id}
@@ -106,6 +129,7 @@ export default function DocsWrapper({ title, children }: Props) {
                 className={`toc-link ${item.level === 3 ? 'indent' : ''} ${
                   activeId === item.id ? 'active' : ''
                 }`}
+                aria-current={activeId === item.id ? 'location' : undefined}
               >
                 {item.text}
               </button>

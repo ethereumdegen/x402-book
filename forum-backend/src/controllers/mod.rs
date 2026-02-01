@@ -1,6 +1,8 @@
+mod earnings;
 mod posts;
 mod register;
 
+pub use earnings::EarningsController;
 pub use posts::PostsController;
 pub use register::RegisterController;
 

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import TrippyHeader from '../components/TrippyHeader'
+import { SEO, WebsiteSchema, CollectionPageSchema, SITE_URL } from '../components/SEO'
 import {
   getBoards,
   getTrendingThreads,
@@ -76,11 +77,37 @@ export default function BoardList() {
   }
 
   if (loading) {
-    return <div className="loading">Loading...</div>
+    return (
+      <>
+        <SEO />
+        <div className="loading">Loading...</div>
+      </>
+    )
   }
+
+  // Prepare collection data for structured data
+  const topicItems = boards.map((board) => ({
+    name: board.name,
+    url: `${SITE_URL}/${board.slug}`,
+    description: board.description || `Browse ${board.name} articles on x402 Book`,
+  }))
 
   return (
     <div className="home-page">
+      <SEO
+        title="Home"
+        description="Explore premium AI-generated articles on technology, research, creative writing, and more. Discover top AI agents and trending content on x402 Book."
+        url={SITE_URL}
+        type="website"
+      />
+      <WebsiteSchema />
+      <CollectionPageSchema
+        name="x402 Book Topics"
+        description="Browse articles by topic on x402 Book"
+        url={SITE_URL}
+        items={topicItems}
+      />
+
       <div className="hero-section">
         <TrippyHeader />
         <p>High-quality content from premium AI agents</p>
@@ -91,13 +118,14 @@ export default function BoardList() {
             Database connection failure
           </div>
         ) : (
-          <form className="search-form" onSubmit={handleSearch}>
+          <form className="search-form" onSubmit={handleSearch} role="search" aria-label="Search articles">
             <input
-              type="text"
+              type="search"
               placeholder="Search articles..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"
+              aria-label="Search articles and agents"
             />
             <button type="submit" className="search-button" disabled={isSearching}>
               {isSearching ? 'Searching...' : 'Search'}
@@ -107,10 +135,10 @@ export default function BoardList() {
       </div>
 
       {searchResults !== null ? (
-        <div className="search-results">
+        <div className="search-results" role="region" aria-label="Search results">
           <div className="section-header">
             <h2>Search Results</h2>
-            <button onClick={clearSearch} className="clear-search">
+            <button onClick={clearSearch} className="clear-search" aria-label="Clear search results">
               Clear
             </button>
           </div>
@@ -129,8 +157,9 @@ export default function BoardList() {
                         key={agent.id}
                         to={`/agents/${agent.id}`}
                         className="feed-item agent-item"
+                        aria-label={`View ${agent.name}'s profile`}
                       >
-                        <div className="agent-avatar">
+                        <div className="agent-avatar" aria-hidden="true">
                           {agent.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="feed-item-content">
@@ -149,7 +178,7 @@ export default function BoardList() {
                   <h3>Articles</h3>
                   <div className="article-list">
                     {searchResults.threads.map((thread) => (
-                      <div key={thread.id} className="article-preview">
+                      <article key={thread.id} className="article-preview">
                         <div className="author">
                           <span className="author-name">
                             {thread.anon
@@ -157,13 +186,13 @@ export default function BoardList() {
                               : thread.agent?.name || 'Unknown Agent'}
                           </span>
                           <span>&middot;</span>
-                          <span>{formatDate(thread.created_at)}</span>
+                          <time dateTime={thread.created_at}>{formatDate(thread.created_at)}</time>
                         </div>
                         <Link to={`/thread/${thread.id}`} className="title">
-                          {thread.title}
+                          <h4>{thread.title}</h4>
                         </Link>
                         <p className="excerpt">{truncate(thread.content, 150)}</p>
-                      </div>
+                      </article>
                     ))}
                   </div>
                 </div>
@@ -174,10 +203,10 @@ export default function BoardList() {
       ) : (
         <>
           <div className="feeds-grid">
-            <section className="feed-section">
+            <section className="feed-section" aria-labelledby="trending-articles-heading">
               <div className="section-header">
-                <h2>Trending Articles</h2>
-                <Link to="/technology" className="see-all">
+                <h2 id="trending-articles-heading">Trending Articles</h2>
+                <Link to="/technology" className="see-all" aria-label="View all articles">
                   View all
                 </Link>
               </div>
@@ -187,6 +216,7 @@ export default function BoardList() {
                     key={thread.id}
                     to={`/thread/${thread.id}`}
                     className="feed-item"
+                    aria-label={`Read ${thread.title}`}
                   >
                     <div className="feed-item-content">
                       <h3>{thread.title}</h3>
@@ -200,10 +230,10 @@ export default function BoardList() {
               </div>
             </section>
 
-            <section className="feed-section">
+            <section className="feed-section" aria-labelledby="top-agents-heading">
               <div className="section-header">
-                <h2>Top Agents</h2>
-                <Link to="/agents" className="see-all">
+                <h2 id="top-agents-heading">Top Agents</h2>
+                <Link to="/agents" className="see-all" aria-label="View all AI agents">
                   View all
                 </Link>
               </div>
@@ -213,8 +243,9 @@ export default function BoardList() {
                     key={agent.id}
                     to={`/agents/${agent.id}`}
                     className="feed-item agent-item"
+                    aria-label={`View ${agent.name}'s profile`}
                   >
-                    <div className="agent-avatar">
+                    <div className="agent-avatar" aria-hidden="true">
                       {agent.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="feed-item-content">
@@ -229,16 +260,17 @@ export default function BoardList() {
             </section>
           </div>
 
-          <section className="topics-section">
+          <section className="topics-section" aria-labelledby="topics-heading">
             <div className="section-header">
-              <h2>Browse Topics</h2>
+              <h2 id="topics-heading">Browse Topics</h2>
             </div>
-            <div className="category-list">
+            <nav className="category-list" aria-label="Article topics">
               {boards.map((board) => (
                 <Link
                   key={board.slug}
                   to={`/${board.slug}`}
                   className="category-card"
+                  aria-label={`Browse ${board.name} articles`}
                 >
                   <h3>{board.name}</h3>
                   {board.description && (
@@ -250,7 +282,7 @@ export default function BoardList() {
                   </p>
                 </Link>
               ))}
-            </div>
+            </nav>
           </section>
         </>
       )}

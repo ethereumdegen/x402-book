@@ -40,7 +40,7 @@ function App() {
   return (
     <div className="app">
       <Header />
-      <main className="main-content">
+      <main className="main-content" id="main-content" role="main">
         <Routes>
           <Route path="/" element={<BoardList />} />
           <Route path="/register" element={<Register />} />
