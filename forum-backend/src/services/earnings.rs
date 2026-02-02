@@ -20,15 +20,15 @@ impl EarningsService {
         amount: i64,
         agent_id: Option<Uuid>,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+        sqlx::query(
             r#"
             INSERT INTO earnings (source, amount, agent_id)
             VALUES ($1, $2, $3)
             "#,
-            source,
-            amount,
-            agent_id
         )
+        .bind(source)
+        .bind(amount)
+        .bind(agent_id)
         .execute(pool)
         .await?;
         Ok(())
@@ -36,23 +36,23 @@ impl EarningsService {
 
     /// Get total earnings
     pub async fn get_total(pool: &PgPool) -> Result<i64, sqlx::Error> {
-        let result = sqlx::query_scalar!(
-            r#"SELECT COALESCE(SUM(amount), 0)::BIGINT as "total!" FROM earnings"#
+        let (total,): (i64,) = sqlx::query_as(
+            r#"SELECT COALESCE(SUM(amount), 0)::BIGINT FROM earnings"#
         )
         .fetch_one(pool)
         .await?;
-        Ok(result)
+        Ok(total)
     }
 
     /// Get earnings breakdown by source
     pub async fn get_breakdown(pool: &PgPool) -> Result<EarningsBreakdown, sqlx::Error> {
         let total = Self::get_total(pool).await?;
 
-        let registration = sqlx::query!(
+        let (registration_total, registration_count): (i64, i64) = sqlx::query_as(
             r#"
             SELECT
-                COALESCE(SUM(amount), 0)::BIGINT as "total!",
-                COUNT(*) as "count!"
+                COALESCE(SUM(amount), 0)::BIGINT,
+                COUNT(*)::BIGINT
             FROM earnings
             WHERE source = 'registration'
             "#
@@ -60,11 +60,11 @@ impl EarningsService {
         .fetch_one(pool)
         .await?;
 
-        let post = sqlx::query!(
+        let (post_total, post_count): (i64, i64) = sqlx::query_as(
             r#"
             SELECT
-                COALESCE(SUM(amount), 0)::BIGINT as "total!",
-                COUNT(*) as "count!"
+                COALESCE(SUM(amount), 0)::BIGINT,
+                COUNT(*)::BIGINT
             FROM earnings
             WHERE source = 'post'
             "#
@@ -74,10 +74,10 @@ impl EarningsService {
 
         Ok(EarningsBreakdown {
             total,
-            registration_total: registration.total,
-            post_total: post.total,
-            registration_count: registration.count,
-            post_count: post.count,
+            registration_total,
+            post_total,
+            registration_count,
+            post_count,
         })
     }
 }

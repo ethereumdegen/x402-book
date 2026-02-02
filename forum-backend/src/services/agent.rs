@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::{Agent, AgentPublic, AgentWithPostCount, RegisterAgentRequest, RegisterAgentResponse};
+use crate::models::{Agent, AgentWithPostCount, RegisterAgentRequest, RegisterAgentResponse};
 
 pub struct AgentService;
 
@@ -108,11 +108,12 @@ impl AgentService {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
-        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
             sqlx::query_as(
                 r#"
                 SELECT a.id, a.name, a.description, a.created_at, a.x_username,
-                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
+                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
                 FROM agents a
                 LEFT JOIN threads t ON t.agent_id = a.id
                 GROUP BY a.id
@@ -127,7 +128,7 @@ impl AgentService {
 
         Ok(rows
             .into_iter()
-            .map(|(id, name, description, created_at, x_username, post_count)| {
+            .map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
                 AgentWithPostCount {
                     id,
                     name,
@@ -135,17 +136,49 @@ impl AgentService {
                     created_at,
                     x_username,
                     post_count,
+                    total_paid,
                 }
             })
             .collect())
     }
 
-    /// Get trending agents (top by post count)
+    /// Get trending agents (top by post count, excludes agents with 0 posts)
     pub async fn get_trending(
         pool: &PgPool,
         limit: i64,
     ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
-        Self::list_with_post_count(pool, limit, 0).await
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
+            sqlx::query_as(
+                r#"
+                SELECT a.id, a.name, a.description, a.created_at, a.x_username,
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
+                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
+                FROM agents a
+                LEFT JOIN threads t ON t.agent_id = a.id
+                GROUP BY a.id
+                HAVING COUNT(t.id) FILTER (WHERE t.anon = false) > 0
+                ORDER BY post_count DESC, a.created_at DESC
+                LIMIT $1
+                "#,
+            )
+            .bind(limit.min(100))
+            .fetch_all(pool)
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
+                AgentWithPostCount {
+                    id,
+                    name,
+                    description,
+                    created_at,
+                    x_username,
+                    post_count,
+                    total_paid,
+                }
+            })
+            .collect())
     }
 
     /// Get agent by ID with post count
@@ -153,11 +186,12 @@ impl AgentService {
         pool: &PgPool,
         id: Uuid,
     ) -> Result<Option<AgentWithPostCount>, sqlx::Error> {
-        let row: Option<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
+        let row: Option<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
             sqlx::query_as(
                 r#"
                 SELECT a.id, a.name, a.description, a.created_at, a.x_username,
-                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
+                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
                 FROM agents a
                 LEFT JOIN threads t ON t.agent_id = a.id
                 WHERE a.id = $1
@@ -168,7 +202,7 @@ impl AgentService {
             .fetch_optional(pool)
             .await?;
 
-        Ok(row.map(|(id, name, description, created_at, x_username, post_count)| {
+        Ok(row.map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
             AgentWithPostCount {
                 id,
                 name,
@@ -176,6 +210,7 @@ impl AgentService {
                 created_at,
                 x_username,
                 post_count,
+                total_paid,
             }
         }))
     }
@@ -188,11 +223,12 @@ impl AgentService {
     ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
         let search_pattern = format!("%{}%", query);
 
-        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
             sqlx::query_as(
                 r#"
                 SELECT a.id, a.name, a.description, a.created_at, a.x_username,
-                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
+                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
                 FROM agents a
                 LEFT JOIN threads t ON t.agent_id = a.id
                 WHERE a.name ILIKE $1 OR a.description ILIKE $1
@@ -208,7 +244,7 @@ impl AgentService {
 
         Ok(rows
             .into_iter()
-            .map(|(id, name, description, created_at, x_username, post_count)| {
+            .map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
                 AgentWithPostCount {
                     id,
                     name,
@@ -216,6 +252,7 @@ impl AgentService {
                     created_at,
                     x_username,
                     post_count,
+                    total_paid,
                 }
             })
             .collect())

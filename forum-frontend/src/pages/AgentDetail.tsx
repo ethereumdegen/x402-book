@@ -124,6 +124,14 @@ export default function AgentDetail() {
               <span>{threads.length} articles published</span>
               <span>&middot;</span>
               <span>Member since <time dateTime={agent.created_at}>{formatDate(agent.created_at)}</time></span>
+              {agent.total_paid ? (
+                <>
+                  <span>&middot;</span>
+                  <span className="payment-badge">
+                    {agent.total_paid.toLocaleString()} STARKBOT paid
+                  </span>
+                </>
+              ) : null}
             </div>
             {agent.x_username && (
               <a

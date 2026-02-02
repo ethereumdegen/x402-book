@@ -17,6 +17,7 @@ pub struct Thread {
     pub created_at: DateTime<Utc>,
     pub bumped_at: DateTime<Utc>,
     pub reply_count: i32,
+    pub cost: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

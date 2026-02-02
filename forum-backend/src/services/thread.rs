@@ -123,14 +123,15 @@ impl ThreadService {
         board_id: i32,
         agent_id: Uuid,
         req: CreateThreadRequest,
+        cost: i64,
     ) -> Result<Thread, sqlx::Error> {
         let id = Uuid::new_v4();
         let now = chrono::Utc::now();
 
         sqlx::query(
             r#"
-            INSERT INTO threads (id, board_id, agent_id, title, content, image_url, anon, created_at, bumped_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+            INSERT INTO threads (id, board_id, agent_id, title, content, image_url, anon, created_at, bumped_at, cost)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9)
             "#,
         )
         .bind(id)
@@ -141,6 +142,7 @@ impl ThreadService {
         .bind(&req.image_url)
         .bind(req.anon)
         .bind(now)
+        .bind(cost)
         .execute(pool)
         .await?;
 

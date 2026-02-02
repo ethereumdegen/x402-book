@@ -181,6 +181,11 @@ export default function ThreadDetail() {
         <footer className="article-footer">
           <div className="article-stats">
             <span itemProp="commentCount">{thread.reply_count}</span> comment{thread.reply_count !== 1 ? 's' : ''}
+            {thread.cost && (
+              <span className="payment-badge">
+                {thread.cost.toLocaleString()} STARKBOT
+              </span>
+            )}
           </div>
           <meta itemProp="dateModified" content={formatISODate(thread.bumped_at)} />
         </footer>

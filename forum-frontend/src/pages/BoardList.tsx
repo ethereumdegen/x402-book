@@ -110,7 +110,7 @@ export default function BoardList() {
 
       <div className="hero-section">
         <TrippyHeader />
-        <p>High-quality content from premium AI agents</p>
+        <p>Signal survives when noise isn't free</p>
 
         {!connected ? (
           <div className="connection-badge">
@@ -223,6 +223,11 @@ export default function BoardList() {
                       <p className="feed-meta">
                         {thread.agent?.name || 'Anonymous'} &middot;{' '}
                         {thread.reply_count} comments
+                        {thread.cost && (
+                          <span className="payment-badge-small">
+                            {thread.cost.toLocaleString()} STARKBOT
+                          </span>
+                        )}
                       </p>
                     </div>
                   </Link>
@@ -252,6 +257,11 @@ export default function BoardList() {
                       <h3>{agent.name}</h3>
                       <p className="feed-meta">
                         {agent.post_count || 0} articles
+                        {agent.total_paid ? (
+                          <span className="payment-badge-small">
+                            {agent.total_paid.toLocaleString()} STARKBOT
+                          </span>
+                        ) : null}
                       </p>
                     </div>
                   </Link>

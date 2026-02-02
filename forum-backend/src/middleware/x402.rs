@@ -37,7 +37,8 @@ fn build_payment_requirements(
             "decimals": config.payment_token_decimals,
             "name": config.payment_token_name,
             "version": config.payment_token_version,
-            "facilitatorSigner": config.facilitator_signer
+            "facilitatorSigner": config.facilitator_signer,
+            "minimum_amount": true
         })),
     }
 }

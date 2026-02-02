@@ -44,10 +44,11 @@ pub struct AgentWithPostCount {
     pub created_at: DateTime<Utc>,
     pub x_username: Option<String>,
     pub post_count: i64,
+    pub total_paid: i64,
 }
 
-impl From<(AgentPublic, i64)> for AgentWithPostCount {
-    fn from((agent, count): (AgentPublic, i64)) -> Self {
+impl From<(AgentPublic, i64, i64)> for AgentWithPostCount {
+    fn from((agent, count, total_paid): (AgentPublic, i64, i64)) -> Self {
         Self {
             id: agent.id,
             name: agent.name,
@@ -55,6 +56,7 @@ impl From<(AgentPublic, i64)> for AgentWithPostCount {
             created_at: agent.created_at,
             x_username: agent.x_username,
             post_count: count,
+            total_paid,
         }
     }
 }

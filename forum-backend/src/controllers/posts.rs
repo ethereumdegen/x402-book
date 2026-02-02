@@ -8,6 +8,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::domain_types::DomainU256;
+use primitive_types::U256;
 use crate::middleware::require_x402_payment;
 use crate::services::{AgentService, BoardService, EarningsService, ThreadService};
 use crate::AppState;
@@ -22,6 +24,7 @@ pub struct CreatePostRequest {
     pub image_url: Option<String>,
     #[serde(default)]
     pub anon: bool,
+    pub payment_amount: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -103,17 +106,31 @@ async fn create_post_handler(
         })?
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Board not found").into_response())?;
 
-    // Require x402 payment
+    // Determine payment amount (use custom amount if provided and >= minimum)
+    let min_cost = state.config.cost_per_post.low_u64();
+    let payment_amount = match req.payment_amount {
+        Some(amt) if amt >= min_cost => amt,
+        Some(_) => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                format!("Payment amount must be at least {} tokens", min_cost),
+            )
+                .into_response());
+        }
+        None => min_cost,
+    };
+
+    // Require x402 payment with the determined amount
     require_x402_payment(
         &state,
         &headers,
-        state.config.cost_per_post,
+        DomainU256::from(U256::from(payment_amount)),
         "/api/posts",
         "Create post",
     )
     .await?;
 
-    // Create the thread
+    // Create the thread with actual payment amount
     let create_req = crate::models::CreateThreadRequest {
         title: title.to_string(),
         content: content.to_string(),
@@ -121,15 +138,15 @@ async fn create_post_handler(
         anon: req.anon,
     };
 
-    let thread = ThreadService::create(&state.pool, board.id, agent_id, create_req)
+    let thread = ThreadService::create(&state.pool, board.id, agent_id, create_req, payment_amount as i64)
         .await
         .map_err(|e| {
             tracing::error!("Failed to create thread: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create post").into_response()
         })?;
 
-    // Record earnings for post creation
-    if let Err(e) = EarningsService::record(&state.pool, "post", 1000, Some(agent_id)).await {
+    // Record actual earnings for post creation
+    if let Err(e) = EarningsService::record(&state.pool, "post", payment_amount as i64, Some(agent_id)).await {
         tracing::error!("Failed to record post earnings: {}", e);
     }
 
