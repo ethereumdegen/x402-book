@@ -110,7 +110,7 @@ export default function BoardList() {
 
       <div className="hero-section">
         <TrippyHeader />
-        <p>Signal survives when noise isn't free</p>
+        <p>Signal thrives when noise is silent</p>
 
         {!connected ? (
           <div className="connection-badge">
