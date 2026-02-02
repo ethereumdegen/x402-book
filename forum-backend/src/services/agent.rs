@@ -1,3 +1,4 @@
+use primitive_types::U256;
 use rand::Rng;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
@@ -102,18 +103,31 @@ impl AgentService {
         Ok(count)
     }
 
+    /// Sum cost strings using U256 arithmetic
+    fn sum_costs(costs: &[Option<String>]) -> String {
+        let mut total = U256::zero();
+        for cost in costs {
+            if let Some(c) = cost {
+                if let Ok(val) = U256::from_dec_str(c) {
+                    total = total.saturating_add(val);
+                }
+            }
+        }
+        total.to_string()
+    }
+
     /// List all agents with their post counts
     pub async fn list_with_post_count(
         pool: &PgPool,
         limit: i64,
         offset: i64,
     ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
-        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
+        // Get agents with post count
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
             sqlx::query_as(
                 r#"
                 SELECT a.id, a.name, a.description, a.created_at, a.x_username,
-                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
-                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
                 FROM agents a
                 LEFT JOIN threads t ON t.agent_id = a.id
                 GROUP BY a.id
@@ -126,20 +140,30 @@ impl AgentService {
             .fetch_all(pool)
             .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
-                AgentWithPostCount {
-                    id,
-                    name,
-                    description,
-                    created_at,
-                    x_username,
-                    post_count,
-                    total_paid,
-                }
-            })
-            .collect())
+        let mut results = Vec::with_capacity(rows.len());
+        for (id, name, description, created_at, x_username, post_count) in rows {
+            // Get costs for this agent's non-anon threads
+            let costs: Vec<(Option<String>,)> = sqlx::query_as(
+                "SELECT cost FROM threads WHERE agent_id = $1 AND anon = false"
+            )
+            .bind(id)
+            .fetch_all(pool)
+            .await?;
+
+            let total_paid = Self::sum_costs(&costs.into_iter().map(|(c,)| c).collect::<Vec<_>>());
+
+            results.push(AgentWithPostCount {
+                id,
+                name,
+                description,
+                created_at,
+                x_username,
+                post_count,
+                total_paid,
+            });
+        }
+
+        Ok(results)
     }
 
     /// Get trending agents (top by post count, excludes agents with 0 posts)
@@ -147,12 +171,11 @@ impl AgentService {
         pool: &PgPool,
         limit: i64,
     ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
-        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
             sqlx::query_as(
                 r#"
                 SELECT a.id, a.name, a.description, a.created_at, a.x_username,
-                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
-                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
                 FROM agents a
                 LEFT JOIN threads t ON t.agent_id = a.id
                 GROUP BY a.id
@@ -165,20 +188,30 @@ impl AgentService {
             .fetch_all(pool)
             .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
-                AgentWithPostCount {
-                    id,
-                    name,
-                    description,
-                    created_at,
-                    x_username,
-                    post_count,
-                    total_paid,
-                }
-            })
-            .collect())
+        let mut results = Vec::with_capacity(rows.len());
+        for (id, name, description, created_at, x_username, post_count) in rows {
+            // Get costs for this agent's non-anon threads
+            let costs: Vec<(Option<String>,)> = sqlx::query_as(
+                "SELECT cost FROM threads WHERE agent_id = $1 AND anon = false"
+            )
+            .bind(id)
+            .fetch_all(pool)
+            .await?;
+
+            let total_paid = Self::sum_costs(&costs.into_iter().map(|(c,)| c).collect::<Vec<_>>());
+
+            results.push(AgentWithPostCount {
+                id,
+                name,
+                description,
+                created_at,
+                x_username,
+                post_count,
+                total_paid,
+            });
+        }
+
+        Ok(results)
     }
 
     /// Get agent by ID with post count
@@ -186,12 +219,11 @@ impl AgentService {
         pool: &PgPool,
         id: Uuid,
     ) -> Result<Option<AgentWithPostCount>, sqlx::Error> {
-        let row: Option<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
+        let row: Option<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
             sqlx::query_as(
                 r#"
                 SELECT a.id, a.name, a.description, a.created_at, a.x_username,
-                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
-                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
                 FROM agents a
                 LEFT JOIN threads t ON t.agent_id = a.id
                 WHERE a.id = $1
@@ -202,17 +234,30 @@ impl AgentService {
             .fetch_optional(pool)
             .await?;
 
-        Ok(row.map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
-            AgentWithPostCount {
-                id,
-                name,
-                description,
-                created_at,
-                x_username,
-                post_count,
-                total_paid,
+        match row {
+            Some((id, name, description, created_at, x_username, post_count)) => {
+                // Get costs for this agent's non-anon threads
+                let costs: Vec<(Option<String>,)> = sqlx::query_as(
+                    "SELECT cost FROM threads WHERE agent_id = $1 AND anon = false"
+                )
+                .bind(id)
+                .fetch_all(pool)
+                .await?;
+
+                let total_paid = Self::sum_costs(&costs.into_iter().map(|(c,)| c).collect::<Vec<_>>());
+
+                Ok(Some(AgentWithPostCount {
+                    id,
+                    name,
+                    description,
+                    created_at,
+                    x_username,
+                    post_count,
+                    total_paid,
+                }))
             }
-        }))
+            None => Ok(None),
+        }
     }
 
     /// Search agents by name or description
@@ -223,12 +268,11 @@ impl AgentService {
     ) -> Result<Vec<AgentWithPostCount>, sqlx::Error> {
         let search_pattern = format!("%{}%", query);
 
-        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64, i64)> =
+        let rows: Vec<(Uuid, String, Option<String>, chrono::DateTime<chrono::Utc>, Option<String>, i64)> =
             sqlx::query_as(
                 r#"
                 SELECT a.id, a.name, a.description, a.created_at, a.x_username,
-                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count,
-                       COALESCE(SUM(t.cost) FILTER (WHERE t.anon = false), 0) as total_paid
+                       COALESCE(COUNT(t.id) FILTER (WHERE t.anon = false), 0) as post_count
                 FROM agents a
                 LEFT JOIN threads t ON t.agent_id = a.id
                 WHERE a.name ILIKE $1 OR a.description ILIKE $1
@@ -242,19 +286,29 @@ impl AgentService {
             .fetch_all(pool)
             .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|(id, name, description, created_at, x_username, post_count, total_paid)| {
-                AgentWithPostCount {
-                    id,
-                    name,
-                    description,
-                    created_at,
-                    x_username,
-                    post_count,
-                    total_paid,
-                }
-            })
-            .collect())
+        let mut results = Vec::with_capacity(rows.len());
+        for (id, name, description, created_at, x_username, post_count) in rows {
+            // Get costs for this agent's non-anon threads
+            let costs: Vec<(Option<String>,)> = sqlx::query_as(
+                "SELECT cost FROM threads WHERE agent_id = $1 AND anon = false"
+            )
+            .bind(id)
+            .fetch_all(pool)
+            .await?;
+
+            let total_paid = Self::sum_costs(&costs.into_iter().map(|(c,)| c).collect::<Vec<_>>());
+
+            results.push(AgentWithPostCount {
+                id,
+                name,
+                description,
+                created_at,
+                x_username,
+                post_count,
+                total_paid,
+            });
+        }
+
+        Ok(results)
     }
 }

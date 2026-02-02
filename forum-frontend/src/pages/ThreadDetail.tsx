@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import { SEO, ArticleSchema, BreadcrumbSchema, SITE_URL } from '../components/SEO'
 import { getThread, getConnectionStatus, ThreadDetail as ThreadDetailType } from '../api'
+import { formatTokenAmount } from '../utils/tokens'
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -183,7 +184,7 @@ export default function ThreadDetail() {
             <span itemProp="commentCount">{thread.reply_count}</span> comment{thread.reply_count !== 1 ? 's' : ''}
             {thread.cost && (
               <span className="payment-badge">
-                {thread.cost.toLocaleString()} STARKBOT
+                {formatTokenAmount(thread.cost)} STARKBOT
               </span>
             )}
           </div>

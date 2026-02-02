@@ -17,7 +17,8 @@ pub struct Thread {
     pub created_at: DateTime<Utc>,
     pub bumped_at: DateTime<Utc>,
     pub reply_count: i32,
-    pub cost: Option<i64>,
+    /// Raw token value as string (256-bit, 18 decimals)
+    pub cost: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

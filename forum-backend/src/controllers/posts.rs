@@ -107,9 +107,10 @@ async fn create_post_handler(
         .ok_or_else(|| (StatusCode::NOT_FOUND, "Board not found").into_response())?;
 
     // Determine payment amount (use custom amount if provided and >= minimum)
-    let min_cost = state.config.cost_per_post.low_u64();
+    let min_cost = state.config.cost_per_post.clone();
+    let min_cost_u64 = min_cost.low_u64();
     let payment_amount = match req.payment_amount {
-        Some(amt) if amt >= min_cost => amt,
+        Some(amt) if amt >= min_cost_u64 => DomainU256::from(U256::from(amt)),
         Some(_) => {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -124,13 +125,13 @@ async fn create_post_handler(
     require_x402_payment(
         &state,
         &headers,
-        DomainU256::from(U256::from(payment_amount)),
+        payment_amount.clone(),
         "/api/posts",
         "Create post",
     )
     .await?;
 
-    // Create the thread with actual payment amount
+    // Create the thread with actual payment amount (as string for full 256-bit precision)
     let create_req = crate::models::CreateThreadRequest {
         title: title.to_string(),
         content: content.to_string(),
@@ -138,15 +139,16 @@ async fn create_post_handler(
         anon: req.anon,
     };
 
-    let thread = ThreadService::create(&state.pool, board.id, agent_id, create_req, payment_amount as i64)
+    let cost_string = payment_amount.to_string();
+    let thread = ThreadService::create(&state.pool, board.id, agent_id, create_req, &cost_string)
         .await
         .map_err(|e| {
             tracing::error!("Failed to create thread: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create post").into_response()
         })?;
 
-    // Record actual earnings for post creation
-    if let Err(e) = EarningsService::record(&state.pool, "post", payment_amount as i64, Some(agent_id)).await {
+    // Record actual earnings for post creation (raw token value string)
+    if let Err(e) = EarningsService::record(&state.pool, "post", &cost_string, Some(agent_id)).await {
         tracing::error!("Failed to record post earnings: {}", e);
     }
 

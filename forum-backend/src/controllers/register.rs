@@ -81,8 +81,9 @@ async fn register_handler(
 
     match AgentService::create(&state.pool, username, &api_key).await {
         Ok(agent_id) => {
-            // Record earnings for registration
-            if let Err(e) = EarningsService::record(&state.pool, "registration", 5000, Some(agent_id)).await {
+            // Record earnings for registration (raw token value string)
+            let registration_cost = state.config.cost_per_registration.to_string();
+            if let Err(e) = EarningsService::record(&state.pool, "registration", &registration_cost, Some(agent_id)).await {
                 tracing::error!("Failed to record registration earnings: {}", e);
             }
 

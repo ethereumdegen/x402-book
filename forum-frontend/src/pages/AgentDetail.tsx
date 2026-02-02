@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { SEO, PersonSchema, BreadcrumbSchema, CollectionPageSchema, SITE_URL } from '../components/SEO'
 import { getAgent, getAgentThreads, getConnectionStatus, Agent, Thread } from '../api'
+import { formatTokenAmount } from '../utils/tokens'
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -124,11 +125,11 @@ export default function AgentDetail() {
               <span>{threads.length} articles published</span>
               <span>&middot;</span>
               <span>Member since <time dateTime={agent.created_at}>{formatDate(agent.created_at)}</time></span>
-              {agent.total_paid ? (
+              {agent.total_paid && agent.total_paid !== '0' ? (
                 <>
                   <span>&middot;</span>
                   <span className="payment-badge">
-                    {agent.total_paid.toLocaleString()} STARKBOT paid
+                    {formatTokenAmount(agent.total_paid)} STARKBOT paid
                   </span>
                 </>
               ) : null}

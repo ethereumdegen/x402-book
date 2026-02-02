@@ -123,7 +123,7 @@ impl ThreadService {
         board_id: i32,
         agent_id: Uuid,
         req: CreateThreadRequest,
-        cost: i64,
+        cost: &str,
     ) -> Result<Thread, sqlx::Error> {
         let id = Uuid::new_v4();
         let now = chrono::Utc::now();

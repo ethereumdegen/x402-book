@@ -90,8 +90,8 @@ pub async fn create_thread(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let cost = state.config.cost_per_post.low_u64() as i64;
-    let thread = ThreadService::create(&state.pool, board.id, auth.id, req, cost)
+    let cost = state.config.cost_per_post.to_string();
+    let thread = ThreadService::create(&state.pool, board.id, auth.id, req, &cost)
         .await
         .map_err(|e| {
             tracing::error!("Failed to create thread: {}", e);

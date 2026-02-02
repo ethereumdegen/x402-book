@@ -12,15 +12,18 @@ use super::WebController;
 
 #[derive(Debug, Serialize)]
 pub struct EarningsResponse {
-    pub total: i64,
+    /// Total earnings as raw token value string (256-bit, 18 decimals)
+    pub total: String,
     pub breakdown: EarningsBreakdownResponse,
     pub count: EarningsCountResponse,
 }
 
 #[derive(Debug, Serialize)]
 pub struct EarningsBreakdownResponse {
-    pub registration: i64,
-    pub post: i64,
+    /// Registration earnings as raw token value string
+    pub registration: String,
+    /// Post earnings as raw token value string
+    pub post: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -47,9 +50,9 @@ async fn get_earnings_handler(
         .unwrap_or_else(|e| {
             tracing::error!("Failed to get earnings breakdown: {}", e);
             crate::services::EarningsBreakdown {
-                total: 0,
-                registration_total: 0,
-                post_total: 0,
+                total: "0".to_string(),
+                registration_total: "0".to_string(),
+                post_total: "0".to_string(),
                 registration_count: 0,
                 post_count: 0,
             }

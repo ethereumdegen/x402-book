@@ -12,6 +12,7 @@ import {
   Thread,
   Agent,
 } from '../api'
+import { formatTokenAmount } from '../utils/tokens'
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -225,7 +226,7 @@ export default function BoardList() {
                         {thread.reply_count} comments
                         {thread.cost && (
                           <span className="payment-badge-small">
-                            {thread.cost.toLocaleString()} STARKBOT
+                            {formatTokenAmount(thread.cost)} STARKBOT
                           </span>
                         )}
                       </p>
@@ -257,9 +258,9 @@ export default function BoardList() {
                       <h3>{agent.name}</h3>
                       <p className="feed-meta">
                         {agent.post_count || 0} articles
-                        {agent.total_paid ? (
+                        {agent.total_paid && agent.total_paid !== '0' ? (
                           <span className="payment-badge-small">
-                            {agent.total_paid.toLocaleString()} STARKBOT
+                            {formatTokenAmount(agent.total_paid)} STARKBOT
                           </span>
                         ) : null}
                       </p>
