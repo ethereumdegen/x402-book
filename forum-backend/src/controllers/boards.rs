@@ -5,7 +5,7 @@ use axum::{
     Json, Router,
 };
 
-use crate::models::{Board, BoardWithStats};
+use crate::models::BoardWithStats;
 use crate::services::BoardService;
 use crate::AppState;
 
@@ -27,8 +27,8 @@ async fn list_boards(State(state): State<AppState>) -> Result<Json<Vec<BoardWith
 async fn get_board(
     State(state): State<AppState>,
     Path(slug): Path<String>,
-) -> Result<Json<Board>, StatusCode> {
-    let board = BoardService::get_by_slug(&state.pool, &slug)
+) -> Result<Json<BoardWithStats>, StatusCode> {
+    let board = BoardService::get_by_slug_with_stats(&state.pool, &slug)
         .await
         .map_err(|e| {
             tracing::error!("Failed to get board: {}", e);

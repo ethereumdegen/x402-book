@@ -41,4 +41,27 @@ impl BoardService {
         .fetch_optional(pool)
         .await
     }
+
+    pub async fn get_by_slug_with_stats(
+        pool: &PgPool,
+        slug: &str,
+    ) -> Result<Option<BoardWithStats>, sqlx::Error> {
+        let board = Self::get_by_slug(pool, slug).await?;
+        match board {
+            Some(board) => {
+                let thread_count: (i64,) = sqlx::query_as(
+                    "SELECT COUNT(*) FROM threads WHERE board_id = $1"
+                )
+                .bind(board.id)
+                .fetch_one(pool)
+                .await?;
+
+                Ok(Some(BoardWithStats {
+                    board,
+                    thread_count: thread_count.0,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
 }

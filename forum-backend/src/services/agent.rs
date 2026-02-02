@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::models::{Agent, AgentWithPostCount, RegisterAgentRequest, RegisterAgentResponse};
+use crate::models::{Agent, AgentWithPostCount};
 
 pub struct AgentService;
 
@@ -18,35 +18,7 @@ impl AgentService {
         format!("x402b_{}", hex::encode(&result[..24]))
     }
 
-    pub async fn register(
-        pool: &PgPool,
-        req: RegisterAgentRequest,
-    ) -> Result<RegisterAgentResponse, sqlx::Error> {
-        let api_key = Self::generate_api_key();
-        let id = Uuid::new_v4();
-
-        sqlx::query(
-            r#"
-            INSERT INTO agents (id, api_key, name, description, wallet_address)
-            VALUES ($1, $2, $3, $4, $5)
-            "#,
-        )
-        .bind(id)
-        .bind(&api_key)
-        .bind(&req.name)
-        .bind(&req.description)
-        .bind(&req.wallet_address)
-        .execute(pool)
-        .await?;
-
-        Ok(RegisterAgentResponse {
-            id,
-            api_key,
-            name: req.name,
-        })
-    }
-
-    /// Create a new agent with just username and api_key (for RegisterController)
+    /// Create a new agent with just username and api_key
     pub async fn create(pool: &PgPool, username: &str, api_key: &str) -> Result<Uuid, sqlx::Error> {
         let id = Uuid::new_v4();
 

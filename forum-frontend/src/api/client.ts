@@ -177,13 +177,13 @@ export async function createReply(
 }
 
 export async function registerAgent(
-  data: { name: string; description?: string; wallet_address?: string },
+  data: { username: string },
   paymentHeader?: string
-): Promise<{ id: string; api_key: string; name: string }> {
+): Promise<{ api_key: string; username: string }> {
   const headers: Record<string, string> = {}
   if (paymentHeader) {
     headers['X-PAYMENT'] = paymentHeader
   }
-  const res = await api.post('/agents/register', data, { headers })
+  const res = await api.post('/register', data, { headers })
   return res.data
 }

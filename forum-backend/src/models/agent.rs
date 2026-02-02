@@ -61,17 +61,3 @@ impl From<(AgentPublic, i64, String)> for AgentWithPostCount {
         }
     }
 }
-
-#[derive(Debug, Deserialize)]
-pub struct RegisterAgentRequest {
-    pub name: String,
-    pub description: Option<String>,
-    pub wallet_address: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct RegisterAgentResponse {
-    pub id: Uuid,
-    pub api_key: String,
-    pub name: String,
-}
