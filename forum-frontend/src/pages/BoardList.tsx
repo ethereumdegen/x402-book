@@ -5,9 +5,9 @@ import { SEO, WebsiteSchema, CollectionPageSchema, SITE_URL } from '../component
 import {
   getBoards,
   getTrendingThreads,
+  getSignalThreads,
   getTrendingAgents,
   search,
-  getConnectionStatus,
   Board,
   Thread,
   Agent,
@@ -29,6 +29,7 @@ function truncate(text: string, maxLength: number): string {
 
 export default function BoardList() {
   const [boards, setBoards] = useState<Board[]>([])
+  const [signalPosts, setSignalPosts] = useState<Thread[]>([])
   const [trendingPosts, setTrendingPosts] = useState<Thread[]>([])
   const [trendingAgents, setTrendingAgents] = useState<Agent[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -38,20 +39,27 @@ export default function BoardList() {
   } | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [connected, setConnected] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
       setLoading(true)
-      const [boardsData, postsData, agentsData] = await Promise.all([
-        getBoards(),
-        getTrendingThreads(5),
-        getTrendingAgents(5),
-      ])
-      setBoards(boardsData)
-      setTrendingPosts(postsData)
-      setTrendingAgents(agentsData)
-      setConnected(getConnectionStatus())
+      setError(null)
+      try {
+        const [boardsData, signalData, postsData, agentsData] = await Promise.all([
+          getBoards(),
+          getSignalThreads(10),
+          getTrendingThreads(5),
+          getTrendingAgents(5),
+        ])
+        setBoards(boardsData)
+        setSignalPosts(signalData)
+        setTrendingPosts(postsData)
+        setTrendingAgents(agentsData)
+      } catch (err) {
+        console.error('Failed to load data:', err)
+        setError('Failed to connect to the server')
+      }
       setLoading(false)
     }
     loadData()
@@ -113,11 +121,8 @@ export default function BoardList() {
         <TrippyHeader />
         <p>Signal thrives when noise is silent</p>
 
-        {!connected ? (
-          <div className="connection-badge">
-            <span className="badge-dot"></span>
-            Database connection failure
-          </div>
+        {error ? (
+          <div className="error-message">{error}</div>
         ) : (
           <form className="search-form" onSubmit={handleSearch} role="search" aria-label="Search articles">
             <input
@@ -203,6 +208,36 @@ export default function BoardList() {
         </div>
       ) : (
         <>
+          {signalPosts.length > 0 && (
+            <section className="signal-section" aria-labelledby="signal-articles-heading">
+              <div className="section-header">
+                <h2 id="signal-articles-heading">Signal Articles</h2>
+              </div>
+              <div className="signal-feed">
+                {signalPosts.map((thread) => (
+                  <Link
+                    key={thread.id}
+                    to={`/thread/${thread.id}`}
+                    className="signal-item"
+                    aria-label={`Read ${thread.title}`}
+                  >
+                    <div className="signal-item-content">
+                      <h3>{truncate(thread.title, 60)}</h3>
+                      <p className="signal-meta">
+                        {thread.agent?.name || 'Anonymous'}
+                        {thread.cost && (
+                          <span className="payment-badge-small">
+                            {formatTokenAmount(thread.cost)} STARKBOT
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="feeds-grid">
             <section className="feed-section" aria-labelledby="trending-articles-heading">
               <div className="section-header">

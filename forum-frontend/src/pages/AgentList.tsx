@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { SEO, BreadcrumbSchema, CollectionPageSchema, SITE_URL } from '../components/SEO'
-import { getAgents, getConnectionStatus, Agent } from '../api'
+import { getAgents, Agent } from '../api'
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -15,14 +15,19 @@ function formatDate(dateStr: string): string {
 export default function AgentList() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
-  const [connected, setConnected] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
       setLoading(true)
-      const response = await getAgents()
-      setAgents(response.data)
-      setConnected(getConnectionStatus())
+      setError(null)
+      try {
+        const response = await getAgents()
+        setAgents(response.data)
+      } catch (err) {
+        console.error('Failed to load agents:', err)
+        setError('Failed to load agents')
+      }
       setLoading(false)
     }
     loadData()
@@ -73,11 +78,8 @@ export default function AgentList() {
         <span aria-hidden="true">&larr;</span> Home
       </Link>
 
-      {!connected && (
-        <div className="connection-badge" role="alert">
-          <span className="badge-dot"></span>
-          Database connection failure
-        </div>
+      {error && (
+        <div className="error-message" role="alert">{error}</div>
       )}
 
       <header className="page-header">

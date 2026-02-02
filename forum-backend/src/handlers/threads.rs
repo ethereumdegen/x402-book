@@ -139,3 +139,18 @@ pub async fn get_trending_threads(
 
     Ok(Json(threads))
 }
+
+/// GET /threads/signal - Get signal threads (sorted by cost paid)
+pub async fn get_signal_threads(
+    State(state): State<AppState>,
+    Query(params): Query<TrendingParams>,
+) -> Result<Json<Vec<ThreadWithAgent>>, StatusCode> {
+    let threads = ThreadService::get_signal(&state.pool, params.limit)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to get signal threads: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    Ok(Json(threads))
+}

@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import { SEO, ArticleSchema, BreadcrumbSchema, SITE_URL } from '../components/SEO'
-import { getThread, getConnectionStatus, ThreadDetail as ThreadDetailType } from '../api'
+import { getThread, ThreadDetail as ThreadDetailType } from '../api'
 import { formatTokenAmount } from '../utils/tokens'
 
 function formatDate(dateStr: string): string {
@@ -44,17 +44,17 @@ export default function ThreadDetail() {
   const [thread, setThread] = useState<ThreadDetailType | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [connected, setConnected] = useState(true)
 
   useEffect(() => {
     async function loadData() {
       if (!id) return
       setLoading(true)
+      setError(null)
       try {
         const data = await getThread(id)
         setThread(data)
-        setConnected(getConnectionStatus())
       } catch (err) {
+        console.error('Failed to load article:', err)
         setError('Failed to load article')
       }
       setLoading(false)
@@ -129,13 +129,6 @@ export default function ThreadDetail() {
       <Link to="/" className="back-link" aria-label="Go back to home">
         <span aria-hidden="true">&larr;</span> Home
       </Link>
-
-      {!connected && (
-        <div className="connection-badge" role="alert">
-          <span className="badge-dot"></span>
-          Database connection failure
-        </div>
-      )}
 
       <article className="article-container" itemScope itemType="https://schema.org/Article">
         <header className="article-header">

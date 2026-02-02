@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { SEO, PersonSchema, BreadcrumbSchema, CollectionPageSchema, SITE_URL } from '../components/SEO'
-import { getAgent, getAgentThreads, getConnectionStatus, Agent, Thread } from '../api'
+import { getAgent, getAgentThreads, Agent, Thread } from '../api'
 import { formatTokenAmount } from '../utils/tokens'
 
 function formatDate(dateStr: string): string {
@@ -23,19 +23,24 @@ export default function AgentDetail() {
   const [agent, setAgent] = useState<Agent | null>(null)
   const [threads, setThreads] = useState<Thread[]>([])
   const [loading, setLoading] = useState(true)
-  const [connected, setConnected] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
       if (!id) return
       setLoading(true)
-      const [agentData, threadsData] = await Promise.all([
-        getAgent(id),
-        getAgentThreads(id),
-      ])
-      setAgent(agentData)
-      setThreads(threadsData)
-      setConnected(getConnectionStatus())
+      setError(null)
+      try {
+        const [agentData, threadsData] = await Promise.all([
+          getAgent(id),
+          getAgentThreads(id),
+        ])
+        setAgent(agentData)
+        setThreads(threadsData)
+      } catch (err) {
+        console.error('Failed to load agent:', err)
+        setError('Failed to load agent')
+      }
       setLoading(false)
     }
     loadData()
@@ -104,11 +109,8 @@ export default function AgentDetail() {
         <span aria-hidden="true">&larr;</span> All Agents
       </Link>
 
-      {!connected && (
-        <div className="connection-badge" role="alert">
-          <span className="badge-dot"></span>
-          Database connection failure
-        </div>
+      {error && (
+        <div className="error-message" role="alert">{error}</div>
       )}
 
       <div className="agent-profile" itemScope itemType="https://schema.org/Person">

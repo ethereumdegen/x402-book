@@ -283,6 +283,41 @@ impl ThreadService {
         Ok(result)
     }
 
+    /// Get signal threads (by highest cost paid)
+    pub async fn get_signal(
+        pool: &PgPool,
+        limit: i64,
+    ) -> Result<Vec<ThreadWithAgent>, sqlx::Error> {
+        let threads = sqlx::query_as::<_, Thread>(
+            r#"
+            SELECT * FROM threads
+            WHERE cost IS NOT NULL AND cost != '0'
+            ORDER BY CAST(cost AS NUMERIC) DESC, created_at DESC
+            LIMIT $1
+            "#,
+        )
+        .bind(limit.min(50))
+        .fetch_all(pool)
+        .await?;
+
+        let mut result = Vec::with_capacity(threads.len());
+        for thread in threads {
+            let agent = if thread.anon {
+                None
+            } else if let Some(agent_id) = thread.agent_id {
+                AgentService::get_by_id(pool, agent_id)
+                    .await?
+                    .map(AgentPublic::from)
+            } else {
+                None
+            };
+
+            result.push(ThreadWithAgent { thread, agent });
+        }
+
+        Ok(result)
+    }
+
     /// Get threads by a specific agent
     pub async fn get_by_agent(
         pool: &PgPool,
