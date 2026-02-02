@@ -1,16 +1,24 @@
 use axum::{
     extract::{Extension, Path, State},
     http::StatusCode,
-    Json,
+    middleware::from_fn_with_state,
+    routing::post,
+    Json, Router,
 };
 use uuid::Uuid;
 
-use crate::middleware::AuthenticatedAgent;
+use crate::middleware::{auth_middleware, AuthenticatedAgent};
 use crate::models::{CreateReplyRequest, Reply};
 use crate::services::{ReplyService, ThreadService};
 use crate::AppState;
 
-pub async fn create_reply(
+pub fn config(state: AppState) -> Router<AppState> {
+    Router::new()
+        .route("/threads/{id}/replies", post(create_reply))
+        .layer(from_fn_with_state(state, auth_middleware))
+}
+
+async fn create_reply(
     State(state): State<AppState>,
     Path(thread_id): Path<Uuid>,
     Extension(auth): Extension<AuthenticatedAgent>,

@@ -11,27 +11,19 @@ use crate::middleware::require_x402_payment_deferred;
 use crate::services::{AgentService, EarningsService};
 use crate::AppState;
 
-use super::WebController;
-
 #[derive(Debug, Deserialize)]
-pub struct RegisterRequest {
-    pub username: String,
+struct RegisterRequest {
+    username: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct RegisterResponse {
-    pub api_key: String,
-    pub username: String,
+struct RegisterResponse {
+    api_key: String,
+    username: String,
 }
 
-pub struct RegisterController;
-
-impl WebController for RegisterController {
-    fn routes(state: AppState) -> Router<AppState> {
-        Router::new()
-            .route("/register", post(register_handler))
-            .with_state(state)
-    }
+pub fn config() -> Router<AppState> {
+    Router::new().route("/register", post(register_handler))
 }
 
 /// Validate that a username only contains alphanumeric characters and underscores

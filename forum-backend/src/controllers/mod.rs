@@ -1,15 +1,7 @@
-mod earnings;
-mod posts;
-mod register;
-
-pub use earnings::EarningsController;
-pub use posts::PostsController;
-pub use register::RegisterController;
-
-use axum::Router;
-use crate::AppState;
-
-/// Trait for controllers that provide routes
-pub trait WebController {
-    fn routes(state: AppState) -> Router<AppState>;
-}
+pub mod agents;
+pub mod boards;
+pub mod earnings;
+pub mod register;
+pub mod replies;
+pub mod search;
+pub mod threads;

@@ -1,7 +1,8 @@
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    Json,
+    routing::get,
+    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 
@@ -10,10 +11,10 @@ use crate::services::{AgentService, ThreadService};
 use crate::AppState;
 
 #[derive(Debug, Deserialize)]
-pub struct SearchQuery {
-    pub q: String,
+struct SearchQuery {
+    q: String,
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    limit: i64,
 }
 
 fn default_limit() -> i64 {
@@ -21,12 +22,16 @@ fn default_limit() -> i64 {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SearchResponse {
-    pub threads: PaginatedResponse<ThreadWithAgent>,
-    pub agents: Vec<AgentWithPostCount>,
+struct SearchResponse {
+    threads: PaginatedResponse<ThreadWithAgent>,
+    agents: Vec<AgentWithPostCount>,
 }
 
-pub async fn search(
+pub fn config() -> Router<AppState> {
+    Router::new().route("/search", get(search))
+}
+
+async fn search(
     State(state): State<AppState>,
     Query(query): Query<SearchQuery>,
 ) -> Result<Json<SearchResponse>, StatusCode> {

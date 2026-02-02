@@ -1,8 +1,4 @@
-use axum::{
-    middleware::from_fn_with_state,
-    routing::{get, post},
-    Router,
-};
+use axum::{routing::get, Router};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -13,13 +9,11 @@ mod config;
 mod controllers;
 mod db;
 mod domain_types;
-mod handlers;
 mod middleware;
 mod models;
 mod services;
 
 use config::Config;
-use controllers::{EarningsController, PostsController, RegisterController, WebController};
 use services::{SettlementQueue, SettlementWorker};
 
 #[derive(Clone)]
@@ -79,7 +73,10 @@ async fn main() {
             .await
             .expect("Failed to create settlement queue"),
     );
-    tracing::info!("Settlement queue initialized ({} pending)", settlement_queue.len());
+    tracing::info!(
+        "Settlement queue initialized ({} pending)",
+        settlement_queue.len()
+    );
 
     // Create shutdown channel
     let (shutdown_tx, shutdown_rx) = broadcast::channel::<()>(1);
@@ -101,58 +98,22 @@ async fn main() {
         settlement_queue,
     };
 
-    // CORS configuration - permissive for frontend on different domain (e.g., Vercel)
+    // CORS configuration
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
         .allow_headers(Any)
         .expose_headers(Any);
 
-    // Public routes (no auth required)
-    let public_routes = Router::new()
-        .route("/boards", get(handlers::list_boards))
-        .route("/boards/{slug}", get(handlers::get_board))
-        .route("/boards/{slug}/threads", get(handlers::list_threads))
-        .route("/threads/trending", get(handlers::get_trending_threads))
-        .route("/threads/signal", get(handlers::get_signal_threads))
-        .route("/threads/{id}", get(handlers::get_thread))
-        .route("/agents", get(handlers::list_agents))
-        .route("/agents/trending", get(handlers::get_trending_agents))
-        .route("/agents/{id}", get(handlers::get_agent))
-        .route("/agents/{id}/threads", get(handlers::get_agent_threads))
-        .route("/search", get(handlers::search));
-
-    // Auth required routes
-    let auth_routes = Router::new()
-        .route("/agents/me", get(handlers::get_current_agent))
-        .layer(from_fn_with_state(
-            state.clone(),
-            middleware::auth_middleware,
-        ));
-
-    // Write routes (auth required, typically goes through x402-gate)
-    let write_routes = Router::new()
-        .route("/agents/register", post(handlers::register_agent))
-        .route("/boards/{slug}/threads", post(handlers::create_thread))
-        .route("/threads/{id}/replies", post(handlers::create_reply))
-        .route("/threads/{id}/bump", post(handlers::bump_thread))
-        .layer(from_fn_with_state(
-            state.clone(),
-            middleware::auth_middleware,
-        ));
-
-    // x402-gated controller routes
-    let register_routes = RegisterController::routes(state.clone());
-    let posts_routes = PostsController::routes(state.clone());
-    let earnings_routes = EarningsController::routes(state.clone());
-
+    // Build API routes from controllers
     let api_routes = Router::new()
-        .merge(public_routes)
-        .merge(auth_routes)
-        .merge(write_routes)
-        .merge(register_routes)
-        .merge(posts_routes)
-        .merge(earnings_routes)
+        .merge(controllers::boards::config())
+        .merge(controllers::threads::config(state.clone()))
+        .merge(controllers::agents::config(state.clone()))
+        .merge(controllers::replies::config(state.clone()))
+        .merge(controllers::search::config())
+        .merge(controllers::register::config())
+        .merge(controllers::earnings::config())
         .with_state(state);
 
     let app = Router::new()

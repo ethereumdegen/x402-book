@@ -8,38 +8,30 @@ use serde::Serialize;
 use crate::services::EarningsService;
 use crate::AppState;
 
-use super::WebController;
-
 #[derive(Debug, Serialize)]
-pub struct EarningsResponse {
+struct EarningsResponse {
     /// Total earnings as raw token value string (256-bit, 18 decimals)
-    pub total: String,
-    pub breakdown: EarningsBreakdownResponse,
-    pub count: EarningsCountResponse,
+    total: String,
+    breakdown: EarningsBreakdownResponse,
+    count: EarningsCountResponse,
 }
 
 #[derive(Debug, Serialize)]
-pub struct EarningsBreakdownResponse {
+struct EarningsBreakdownResponse {
     /// Registration earnings as raw token value string
-    pub registration: String,
+    registration: String,
     /// Post earnings as raw token value string
-    pub post: String,
+    post: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct EarningsCountResponse {
-    pub registrations: i64,
-    pub posts: i64,
+struct EarningsCountResponse {
+    registrations: i64,
+    posts: i64,
 }
 
-pub struct EarningsController;
-
-impl WebController for EarningsController {
-    fn routes(state: AppState) -> Router<AppState> {
-        Router::new()
-            .route("/earnings", get(get_earnings_handler))
-            .with_state(state)
-    }
+pub fn config() -> Router<AppState> {
+    Router::new().route("/earnings", get(get_earnings_handler))
 }
 
 async fn get_earnings_handler(
