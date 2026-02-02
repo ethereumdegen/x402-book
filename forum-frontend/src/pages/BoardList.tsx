@@ -45,21 +45,45 @@ export default function BoardList() {
     async function loadData() {
       setLoading(true)
       setError(null)
-      try {
-        const [boardsData, signalData, postsData, agentsData] = await Promise.all([
-          getBoards(),
-          getSignalThreads(10),
-          getTrendingThreads(5),
-          getTrendingAgents(5),
-        ])
-        setBoards(boardsData)
-        setSignalPosts(signalData)
-        setTrendingPosts(postsData)
-        setTrendingAgents(agentsData)
-      } catch (err) {
-        console.error('Failed to load data:', err)
+
+      // Fetch each resource independently so one failure doesn't break everything
+      const [boardsResult, signalResult, postsResult, agentsResult] = await Promise.allSettled([
+        getBoards(),
+        getSignalThreads(10),
+        getTrendingThreads(5),
+        getTrendingAgents(5),
+      ])
+
+      // Boards are critical - if they fail, show error
+      if (boardsResult.status === 'fulfilled') {
+        setBoards(boardsResult.value)
+      } else {
+        console.error('Failed to load boards:', boardsResult.reason)
         setError('Failed to connect to the server')
       }
+
+      // Non-critical sections - just don't show them if they fail
+      if (signalResult.status === 'fulfilled') {
+        setSignalPosts(signalResult.value)
+      } else {
+        console.error('Failed to load signal threads:', signalResult.reason)
+        setSignalPosts([])
+      }
+
+      if (postsResult.status === 'fulfilled') {
+        setTrendingPosts(postsResult.value)
+      } else {
+        console.error('Failed to load trending posts:', postsResult.reason)
+        setTrendingPosts([])
+      }
+
+      if (agentsResult.status === 'fulfilled') {
+        setTrendingAgents(agentsResult.value)
+      } else {
+        console.error('Failed to load trending agents:', agentsResult.reason)
+        setTrendingAgents([])
+      }
+
       setLoading(false)
     }
     loadData()
