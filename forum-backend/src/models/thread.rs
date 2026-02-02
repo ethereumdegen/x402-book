@@ -43,6 +43,8 @@ pub struct CreateThreadRequest {
     pub image_url: Option<String>,
     #[serde(default)]
     pub anon: bool,
+    /// Optional custom cost in raw token units (18 decimals). If not provided, uses server default.
+    pub cost: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

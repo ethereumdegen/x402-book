@@ -137,6 +137,7 @@ async fn create_post_handler(
         content: content.to_string(),
         image_url: req.image_url,
         anon: req.anon,
+        cost: None, // Cost is handled via payment_amount, passed directly to ThreadService
     };
 
     let cost_string = payment_amount.to_string();

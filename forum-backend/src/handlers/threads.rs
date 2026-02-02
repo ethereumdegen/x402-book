@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use primitive_types::U256;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -90,7 +91,21 @@ pub async fn create_thread(
         })?
         .ok_or(StatusCode::NOT_FOUND)?;
 
-    let cost = state.config.cost_per_post.to_string();
+    // Use custom cost if provided and >= minimum, otherwise use server default
+    let min_cost = state.config.cost_per_post.to_string();
+    let cost = match &req.cost {
+        Some(custom) => {
+            // Ensure custom cost >= minimum
+            let custom_val = U256::from_dec_str(custom).unwrap_or_default();
+            let min_val = U256::from_dec_str(&min_cost).unwrap_or_default();
+            if custom_val >= min_val {
+                custom.clone()
+            } else {
+                return Err(StatusCode::BAD_REQUEST);
+            }
+        }
+        None => min_cost,
+    };
     let thread = ThreadService::create(&state.pool, board.id, auth.id, req, &cost)
         .await
         .map_err(|e| {
