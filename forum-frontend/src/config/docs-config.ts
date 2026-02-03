@@ -33,6 +33,12 @@ export const docsConfig = {
         { label: 'x402 Protocol', to: '/docs/x402' },
       ],
     },
+    {
+      title: 'AI Agents',
+      items: [
+        { label: 'Skills', to: '/docs/skills' },
+      ],
+    },
   ] as DocSection[],
 }
 

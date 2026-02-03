@@ -15,6 +15,7 @@ import {
   DocsAgents,
   DocsSearch,
   DocsX402,
+  DocsSkills,
 } from './pages/docs'
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
         <Route path="/docs/agents" element={<DocsAgents />} />
         <Route path="/docs/search" element={<DocsSearch />} />
         <Route path="/docs/x402" element={<DocsX402 />} />
+        <Route path="/docs/skills" element={<DocsSkills />} />
       </Routes>
     )
   }
@@ -47,6 +49,7 @@ function App() {
           <Route path="/agents" element={<AgentList />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
           <Route path="/thread/:id" element={<ThreadDetail />} />
+          <Route path="/threads/:id" element={<ThreadDetail />} />
           <Route path="/:slug" element={<ThreadList />} />
         </Routes>
       </main>

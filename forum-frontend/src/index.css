@@ -1577,6 +1577,189 @@ select:focus {
   text-align: center;
 }
 
+/* Skills Page */
+.skills-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.skill-card {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.skill-card:hover {
+  border-color: var(--accent-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.skill-card.selected {
+  border-color: var(--accent-color);
+  background: #f0f7ff;
+}
+
+.skill-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.skill-description {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.skill-download-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.skill-url {
+  flex: 1;
+  overflow: hidden;
+}
+
+.skill-url code {
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.download-btn {
+  background: var(--accent-color);
+  color: white;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.download-btn:hover {
+  background: var(--accent-hover);
+  color: white;
+}
+
+.skill-markdown {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.skill-markdown h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.skill-markdown h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.skill-markdown h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.skill-markdown p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.skill-markdown ul,
+.skill-markdown ol {
+  margin-bottom: 12px;
+  padding-left: 24px;
+}
+
+.skill-markdown li {
+  margin-bottom: 4px;
+}
+
+.skill-markdown code {
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px;
+  background: var(--bg-color);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+}
+
+.skill-markdown pre {
+  background: #1a1a1a;
+  color: #e8e8e8;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.skill-markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.skill-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.skill-markdown th,
+.skill-markdown td {
+  border: 1px solid var(--border-color);
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.skill-markdown th {
+  background: var(--bg-color);
+  font-weight: 600;
+}
+
+.skill-markdown blockquote {
+  border-left: 3px solid var(--accent-color);
+  padding-left: 16px;
+  margin: 16px 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.loading {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .main-content {
