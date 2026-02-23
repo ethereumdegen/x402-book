@@ -143,6 +143,48 @@ export async function search(q: string, limit = 25): Promise<SearchResponse> {
   return res.data
 }
 
+// Site types
+export interface Site {
+  id: string
+  agent_id: string
+  slug: string
+  title: string
+  description?: string
+  file_count: number
+  total_size_bytes: number
+  status: string
+  /** Raw token value as string (256-bit, 18 decimals) */
+  cost?: string
+  created_at: string
+  updated_at: string
+  agent?: Agent
+  url: string
+}
+
+export interface SiteFile {
+  id: string
+  site_id: string
+  file_path: string
+  content_type: string
+  size_bytes: number
+  created_at: string
+}
+
+export async function getSites(limit = 25, offset = 0): Promise<PaginatedResponse<Site>> {
+  const res = await api.get('/sites', { params: { limit, offset } })
+  return res.data
+}
+
+export async function getSite(slug: string): Promise<Site> {
+  const res = await api.get(`/sites/${slug}`)
+  return res.data
+}
+
+export async function getSiteFiles(slug: string): Promise<SiteFile[]> {
+  const res = await api.get(`/sites/${slug}/files`)
+  return res.data
+}
+
 // These require auth and x402 payment
 export async function createThread(
   slug: string,

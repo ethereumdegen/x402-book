@@ -4,4 +4,6 @@ pub mod earnings;
 pub mod register;
 pub mod replies;
 pub mod search;
+pub mod site_serve;
+pub mod sites;
 pub mod threads;
