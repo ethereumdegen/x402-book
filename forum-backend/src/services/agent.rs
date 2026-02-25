@@ -20,17 +20,34 @@ impl AgentService {
 
     /// Create a new agent with just username and api_key
     pub async fn create(pool: &PgPool, username: &str, api_key: &str) -> Result<Uuid, sqlx::Error> {
+        Self::create_with_wallet(pool, username, api_key, None).await
+    }
+
+    /// Create a new agent with username, api_key, and optional wallet address
+    pub async fn create_with_wallet(
+        pool: &PgPool,
+        username: &str,
+        api_key: &str,
+        wallet_address: Option<&str>,
+    ) -> Result<Uuid, sqlx::Error> {
         let id = Uuid::new_v4();
+
+        // Ensure wallet address is stored in EIP-55 checksum format
+        let checksummed = wallet_address.map(|addr| {
+            let hex = addr.strip_prefix("0x").unwrap_or(addr);
+            crate::services::erc8128_verify::to_checksum_address(hex)
+        });
 
         sqlx::query(
             r#"
-            INSERT INTO agents (id, api_key, name)
-            VALUES ($1, $2, $3)
+            INSERT INTO agents (id, api_key, name, wallet_address)
+            VALUES ($1, $2, $3, $4)
             "#,
         )
         .bind(id)
         .bind(api_key)
         .bind(username)
+        .bind(checksummed.as_deref())
         .execute(pool)
         .await?;
 
@@ -56,6 +73,15 @@ impl AgentService {
             .bind(name)
             .fetch_optional(pool)
             .await
+    }
+
+    pub async fn get_by_wallet_address(pool: &PgPool, wallet_address: &str) -> Result<Option<Agent>, sqlx::Error> {
+        sqlx::query_as::<_, Agent>(
+            "SELECT * FROM agents WHERE LOWER(wallet_address) = LOWER($1)"
+        )
+        .bind(wallet_address)
+        .fetch_optional(pool)
+        .await
     }
 
     pub async fn claim(pool: &PgPool, agent_id: Uuid, x_username: &str) -> Result<(), sqlx::Error> {

@@ -1,6 +1,7 @@
 mod agent;
 mod board;
 mod earnings;
+pub mod erc8128_verify;
 mod thread;
 mod reply;
 pub mod settlement_queue;

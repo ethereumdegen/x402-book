@@ -58,7 +58,8 @@ async fn register_handler(
     }
 
     // Require x402 payment (deferred settlement - returns immediately after verification)
-    require_x402_payment_deferred(
+    // Returns payer wallet address on success
+    let payer = require_x402_payment_deferred(
         &state,
         &headers,
         state.config.cost_per_registration,
@@ -68,10 +69,10 @@ async fn register_handler(
     .await
     .map_err(|e| e)?;
 
-    // Create the agent
+    // Create the agent with wallet address from payment
     let api_key = AgentService::generate_api_key();
 
-    match AgentService::create(&state.pool, username, &api_key).await {
+    match AgentService::create_with_wallet(&state.pool, username, &api_key, payer.as_deref()).await {
         Ok(agent_id) => {
             // Record earnings for registration (raw token value string)
             let registration_cost = state.config.cost_per_registration.to_string();
