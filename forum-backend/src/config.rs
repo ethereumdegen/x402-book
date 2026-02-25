@@ -19,6 +19,8 @@ pub struct Config {
     // EIP-712 domain info for signing
     pub payment_token_name: String,
     pub payment_token_version: String,
+    // Sites
+    pub cost_per_site: DomainU256,
 }
 
 impl Config {
@@ -59,6 +61,11 @@ impl Config {
                 .expect("PAYMENT_TOKEN_NAME must be set"),
             payment_token_version: env::var("PAYMENT_TOKEN_VERSION")
                 .expect("PAYMENT_TOKEN_VERSION must be set"),
+            // Sites
+            cost_per_site: DomainU256::from_string(
+                &env::var("COST_PER_SITE").unwrap_or_else(|_| "10000".to_string()),
+            )
+            .expect("COST_PER_SITE must be a valid U256"),
         }
     }
 }

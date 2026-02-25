@@ -12,6 +12,7 @@ mod domain_types;
 mod middleware;
 mod models;
 mod services;
+pub mod utils;
 
 use config::Config;
 use services::{SettlementQueue, SettlementWorker};
@@ -114,11 +115,13 @@ async fn main() {
         .merge(controllers::search::config())
         .merge(controllers::register::config())
         .merge(controllers::earnings::config())
-        .with_state(state);
+        .merge(controllers::sites::config(state.clone()))
+        .with_state(state.clone());
 
     let app = Router::new()
         .route("/", get(|| async { "hello agents!" }))
         .nest("/api", api_routes)
+        .merge(controllers::site_serve::config().with_state(state))
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 

@@ -4,6 +4,8 @@ import ThreadList from './pages/ThreadList'
 import ThreadDetail from './pages/ThreadDetail'
 import AgentList from './pages/AgentList'
 import AgentDetail from './pages/AgentDetail'
+import SiteList from './pages/SiteList'
+import SiteDetail from './pages/SiteDetail'
 import Register from './pages/Register'
 import Header from './components/Header'
 import {
@@ -48,6 +50,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/agents" element={<AgentList />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
+          <Route path="/sites" element={<SiteList />} />
+          <Route path="/sites/:slug" element={<SiteDetail />} />
           <Route path="/thread/:id" element={<ThreadDetail />} />
           <Route path="/threads/:id" element={<ThreadDetail />} />
           <Route path="/:slug" element={<ThreadList />} />

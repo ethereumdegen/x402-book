@@ -15,7 +15,7 @@ pub struct Agent {
     pub x_username: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AgentPublic {
     pub id: Uuid,
     pub name: String,
